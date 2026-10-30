@@ -6,8 +6,8 @@ is in `../TESTS.md`.
 
 ```
 node build.js                              # from the repo root: build first
-python3 tools/vjif/tests/run_all.py        # every test; ok / FAIL per test
-python3 tools/vjif/tests/run_all.py golden crt_stack -v   # some tests, with their output
+python3 tests/run_all.py                   # every test; ok / FAIL per test
+python3 tests/run_all.py golden crt_stack -v   # some tests, with their output
 ```
 
 ## Requirements

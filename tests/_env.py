@@ -1,7 +1,7 @@
 # shared paths for the browser tests: the built page, the test GIFs (made on first use), where pictures go
 import pathlib, subprocess, sys
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parents[2]                                  # the repo
+ROOT = HERE.parent                                  # the repo
 DIST = 'file://' + str(ROOT / 'dist' / 'vjif.html')     # run `node build.js` first
 FIX = HERE / 'fixtures'                                 # generated GIFs (not in git)
 OUT = HERE / 'out'                                      # screenshots (not in git)

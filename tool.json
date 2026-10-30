@@ -1,2 +1,1 @@
-{ "name": "VJif", "entry": "vjif.html", "output": "vjif.html",
-  "description": "Browser GIF VJ tool: 18 keyboard pads, 4 blended layers, BPM / tap / MIDI-clock sync, live colour key and HSV, sets saved in the browser." }
+{"name": "VJif", "entry": "vjif.html", "output": "vjif.html", "description": "Browser GIF VJ tool: 18 keyboard pads, 4 blended layers, BPM / tap / MIDI-clock sync, live colour key and HSV, sets saved in the browser.", "repo": "https://github.com/XC3N/VJif"}

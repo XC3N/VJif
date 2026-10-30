@@ -12,7 +12,7 @@
 //   encoder µs        MP4 recording: frame n is n / fps after the bar the take started on (sound is moved onto it)
 // The loop: frame() → step() each screen refresh (on the output window's rAF while it's open): clock, pending hits,
 // drawing into the master canvas, recording, then the UI.
-// Source files (tools/vjif/src/, stitched into one script in this order by build.js; one shared scope, order matters):
+// Source files (src/, stitched into one script in this order by build.js; one shared scope, order matters):
 //   core          constants, state, canvases, helpers   types      the main objects and their short names (notes only)
 //   lettering     text → a one-frame GIF              pool         decoding, the GIF pool
 //   colour        key / swaps / HSV (shader + worker) clock-midi   tempo, MIDI clock, MIDI learn   playback   timing, envelopes, LFOs
@@ -20,7 +20,7 @@
 //   output        output window, canvas format        keyboard     keys                            ui-*       panels
 //   main-loop     the frame loop, load meter          persist      IndexedDB, sets, import/export  record     MP4 / WebM recording
 //   undo          undo / redo
-// Shared with the other tools (common/): util (Prefs, saveFile), controls (slider / dropdown behaviour), theme.
+// Shared with the other tools (common/, a pinned copy from XC3N/webtools): util (Prefs, saveFile), controls (slider / dropdown behaviour), theme.
 
 // ---------- constants ----------
 // canvas size: set by the format (landscape for screens and projectors, vertical / square / 4:5 for social video)

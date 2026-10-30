@@ -1,4 +1,4 @@
-# TESTS.md ← the test bench's ticks. Usage: sync_ticks.py <folder of bench items saved as JSON (ArtifactData query out_dir)> tools/vjif/TESTS.md
+# TESTS.md ← the test bench's ticks. Usage: sync_ticks.py <folder of bench items saved as JSON (ArtifactData query out_dir)> TESTS.md
 # each "- {id} ..." line becomes "- [x] {id}" (done on the bench) or "- [ ] {id}" (still to check)
 import json, glob, os, re, sys
 bench, path = sys.argv[1], sys.argv[2]

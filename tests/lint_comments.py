@@ -3,7 +3,7 @@
 # rules after it (the hidden-chip look). Flags a // comment whose text ends in ';' and a CSS comment containing '{'.
 import re, glob, os, sys
 root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src')
-common = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', 'common')   # the shared code too (0.99.3: a comment hid two Theme rows there)
+common = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'common')   # the shared code too (0.99.3: a comment hid two Theme rows there)
 bad = []
 for f in sorted(glob.glob(os.path.join(root, '*.js')) + glob.glob(os.path.join(common, '*.js'))):
   for n, l in enumerate(open(f, encoding='utf-8'), 1):
