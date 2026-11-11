@@ -10,8 +10,28 @@ function sizeOutCv(){
   const w = outWin, d = w.devicePixelRatio || 1, cv = outCtx.canvas, fs = !!w.document.fullscreenElement;
   const [pw, ph] = fs ? [CW, CH] : eighthFit(w.innerWidth * d, w.innerHeight * d);
   if (cv.width !== pw || cv.height !== ph){ cv.width = pw; cv.height = ph; redraw.all = true; }
-  Object.assign(cv.style, fs ? { width: '100vw', height: '100vh' } : { width: pw / d + 'px', height: ph / d + 'px' });
+  // full screen: the picture is zoomed (and moved) inside the screen, black around it (Output ▾ in the header)
+  const V = outView, W = w.innerWidth, H = w.innerHeight;
+  Object.assign(cv.style, fs ? { width: W * V.z + 'px', height: H * V.z + 'px', transform: V.x || V.y ? `translate(${W * V.x / 100}px,${H * V.y / 100}px)` : '' }
+    : { width: pw / d + 'px', height: ph / d + 'px', transform: '' });
 }
+// the output view in full screen: z = size (0.1–1, 1 = the whole screen), x / y = offset in % of the screen
+const OV_KEY = 'vjif-outview';
+const outView = Object.assign({ z: 1, x: 0, y: 0 }, Prefs.json(OV_KEY, {}));
+function setOutView(v){
+  outView.z = Math.min(1, Math.max(0.1, +v.z || 1)); outView.x = Math.max(-100, Math.min(100, +v.x || 0)); outView.y = Math.max(-100, Math.min(100, +v.y || 0));
+  Prefs.setJson(OV_KEY, outView); sizeOutCv(); syncOutViewUI();
+}
+function syncOutViewUI(){
+  const z = Math.round(outView.z * 100);
+  $('#ovZ').value = z; $('#ovZv').textContent = z + '%'; $('#ovX').value = outView.x; $('#ovXv').textContent = outView.x; $('#ovY').value = outView.y; $('#ovYv').textContent = outView.y;
+  $('#outCfg').classList.toggle('on', z !== 100 || outView.x || outView.y);
+}
+$('#outCfg').addEventListener('click', e => { e.stopPropagation(); $('#outPop').hidden = !$('#outPop').hidden; });
+document.addEventListener('pointerdown', e => { if (!$('#outPop').hidden && !e.target.closest('#outWrap')) $('#outPop').hidden = true; });
+['#ovZ', '#ovX', '#ovY'].forEach(q => $(q).addEventListener('input', () => setOutView({ z: $('#ovZ').value / 100, x: +$('#ovX').value, y: +$('#ovY').value })));
+$('#ovReset').addEventListener('click', () => setOutView({ z: 1, x: 0, y: 0 }));
+syncOutViewUI();
 function openOutput(e){
   if (e && e.shiftKey){                              // reset: back to the default size, near the top left of this screen
     Prefs.set(OUT_KEY, null);
