@@ -566,3 +566,8 @@ body.noxdel .chip b{display:none}   /* Ctrl+click to delete only: no × on the l
 #side #gEndRow.field.withseg{grid-template-columns:minmax(0,1fr) 32px!important}#gEndRow>.tog{justify-self:end;overflow:visible}
 .field.twoend{display:flex!important;justify-content:space-between;align-items:center}.field.twoend>label:first-child{position:static}.field.twoend input[type=checkbox]{width:30px!important;height:16px!important}   /* 0.99.28: Gap at the turn too */
 #fxLvl button{padding:0 5px}   /* 0.99.28: the level switch as icons, so the effect's name fits (ID-249) */
+
+/* Output ▾ (0.99.35): zoom / position of the full-screen output, like BRB's and Rec's menus */
+#outWrap{gap:2px}#outWrap>#outCfg{border:1px solid var(--edge);width:18px}#outWrap>#outCfg:hover{border-color:var(--muted)}#outWrap>#outCfg.on,#outWrap:has(#outPop:not([hidden]))>#outCfg{border-color:var(--sig);color:var(--sig)}
+#outPop{position:absolute;top:calc(100% + 6px);right:0;z-index:30;background:var(--panel);border:1px solid var(--edge);border-radius:var(--r);padding:8px;box-shadow:0 6px 18px #0009;display:grid;gap:6px;width:250px}#outPop[hidden]{display:none}
+#outPopRows{display:grid;gap:6px}#outPopRows .poprow{display:grid;grid-template-columns:34px minmax(0,1fr) 44px;align-items:center;gap:6px}#outPopRows .poprow>span{font-size:11px;color:var(--muted)}#outPopRows .lcd{width:44px;text-align:right;font-weight:400}

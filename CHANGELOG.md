@@ -4,6 +4,10 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
+## 0.99.35 — 2026/11/11
+
+- Output ▾ (next to Output): zoom (10–100 %) and X / Y position of the picture in the full-screen output, live from the main window, kept between sessions. The rest of the screen stays black, so a smaller screen or surface than the projector's can show the whole picture. Reset view = 100 %, centred. Windowed output is unchanged.
+
 ## 0.99.34 — 2026/10/27
 
 - Fit range on a colour palette (EGA, CGA, C64, NES, ZX Spectrum…), picked from side-by-side sheets on real scenes: each channel stretched over the picture's range (as in 0.99.21–30), each colour keeping its own hue, then vibrance: muted colours gain colour, strong ones barely move. With Fit range on, a colour palette also matches by hue first, so dull tones go to a palette colour instead of a grey. The Game Boys and the greys keep the brightness stretch (BG-069).
