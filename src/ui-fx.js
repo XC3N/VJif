@@ -6,7 +6,10 @@ function fxTileHTML(i, key){ return `<div class="fxp" data-i="${i}"><span class=
 // click / press effects — each one toggles in or out of that preset. The preset editor lists them with ×.
 let heldPre = -1, fxDrag = null;
 const FX_DRAG_WAIT = 120;   // ms a tile press waits (held still) before it plays: time for a drag to show itself
-const fxEntry = i => ({ ...(fxCfg[i].mod ? { mod: JSON.parse(JSON.stringify(fxCfg[i].mod)) } : {}), amt: fxCfg[i].amt, rate: fxCfg[i].rate, style: fxCfg[i].style, target: fxCfg[i].target, size: fxCfg[i].size, ...Object.fromEntries(FX_XK.map(([k, def]) => [k, fxCfg[i][k] ?? def])), ...(fxCfg[i].pamt ? { pamt: { ...fxCfg[i].pamt } } : {}) });   // an effect as a preset holds it
+// an effect as a preset holds it. At GIF level the tile and the editor show the selected GIF's own settings: those go in (0.99.37: it took Output's, so CRT › Crypt landed as Split);
+// the layers, LFOs and Edges stay Output's (a GIF has none of its own: its Edges are off because its buffer is the whole frame)
+const fxEntry = (i, gif = fxLvl === 'gif') => { const C = fxCfg[i], G = gif && curGif() ? gfxEntry(i) : null, S = G ? { ...C, ...G, ovs: C.ovs } : C;
+  return { ...(C.mod ? { mod: JSON.parse(JSON.stringify(C.mod)) } : {}), amt: S.amt, rate: S.rate, style: S.style, target: C.target, size: S.size, ...Object.fromEntries(FX_XK.map(([k, def]) => [k, S[k] ?? def])), ...(C.pamt ? { pamt: { ...C.pamt } } : {}) }; };
 function togglePreFx(k, i){
   const P = fxPre[k];
   if (P.fx[i]) delete P.fx[i]; else P.fx[i] = fxEntry(i);
@@ -109,7 +112,7 @@ const fxPreLong = P => { const ks = Object.keys(P.fx); return ks.length ? ks.map
 // store the effects that are on right now (from their own keys) into preset slot k
 function storeFxPre(k){
   const b = clock.beat, fx = {};
-  FX_DEFS.forEach((d, i) => { if (fxLevel(i, b) > 0.05) fx[i] = fxEntry(i); });
+  FX_DEFS.forEach((d, i) => { if (fxLevel(i, b) > 0.05) fx[i] = fxEntry(i, false); });   // (what plays on Output: its settings, whatever level the switch is on)
   if (!Object.keys(fx).length) return toast('Nothing to store — switch on the effects you want first (hold their F keys, or set them to Latch), then store');
   fxPre[k].fx = fx; selFx = NFX + k; syncFxUI(); toast2(`${FXP_LABELS[k]}: ${fxPreName(fxPre[k])}`);
 }

@@ -192,7 +192,7 @@ async function applySnapshot(st, { wait = true } = {}){
   syncFxUI();
   target = st.target || 0;
   pads.forEach((_, i) => renderPad(i));
-  selectPad(Math.max(0, pads.findIndex(p => p.gif))); syncLayerUI(); syncXfUI(); updateMem(); renderPool();
+  { const c = selClip(target); selectPad(c ? c.pad : Math.max(0, pads.findIndex(p => p.gif))); } syncLayerUI(); syncXfUI(); updateMem(); renderPool();   // 0.99.37: the GIF lit on the edited layer (the panel showed the first filled pad's while Background's chip was lit)
   resetHist();   // undo doesn't reach across sets
   redraw.all = true;
   $('#saveStat').textContent = '';

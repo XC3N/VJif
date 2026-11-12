@@ -4,6 +4,12 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
+## 0.99.37 — 2026/11/12
+
+- A new install (or a browser with no saved session) starts with its four layers on. They started off, so nothing showed when you played a pad. A session already saved with them off keeps them off: click the layers' toggles once.
+- Dragging an effect onto a preset at GIF level stores the settings the tile and the editor show (the selected GIF's own: CRT › Crypt went into the preset as Split, Output's style). Layers, LFOs and Edges still come from Output; Caps+Shift+numpad (store what plays) is unchanged.
+- After a reload, the GIF panel shows the GIF whose chip is lit on the layer being edited. It showed the first filled pad's GIF while a Background chip was lit.
+
 ## 0.99.36 — 2026/11/11
 
 - Opening VJif no longer freezes Chrome ("not responding" for a minute or more) when Chrome has no saved copy of the effects shader: after a new VJif version, a Chrome or graphics driver update, or a cleared cache. Measured on FYR's machine with the shader cache off: 84 s for that one shader, the page blocked for all of it. Two changes:
