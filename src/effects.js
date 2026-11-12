@@ -430,7 +430,7 @@ function makePost(){
     const par = gl.getExtension('KHR_parallel_shader_compile'), t0 = performance.now(), progs = [];
     const mk = (name, fs, core = true) => { const P = gl.createProgram(); P.sh = [[gl.VERTEX_SHADER, `attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x + 1.0, 1.0 - p.y) * 0.5; gl_Position = vec4(p, 0.0, 1.0); }`], [gl.FRAGMENT_SHADER, fs]].map(([t, s]) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); gl.attachShader(P, o); return o; });
       gl.linkProgram(P); P.nm = name; if (core) progs.push(P); return P; };
-    // 0.99.37: the effects shader comes in variants. Direct3D's compile time grows much faster than the shader: whole, 20 s on an Iris Xe; without the CRT, Glitch
+    // 0.99.38: the effects shader comes in variants. Direct3D's compile time grows much faster than the shader: whole, 20 s on an Iris Xe; without the CRT, Glitch
     // and Codec parts, 1.2 s. So the base program (everything else) is built first, and the variants that add those parts (#ifdef FX_RGB / FX_GLITCH / FX_CODEC
     // round their blocks in main) follow one at a time in the background, or at once when a frame asks for one. A frame uses the readiest program that
     // has no more than it needs: an effect whose variant isn't ready yet is left out until it is.
