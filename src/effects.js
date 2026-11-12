@@ -1129,20 +1129,14 @@ function drawFrame(now){
   if (moving || sceneChanged(full, live.freeze, bl >= 1) || force){
     drawn++; let sideFx = false;
     if (live.freeze){ mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.globalAlpha = 1; mctx.globalCompositeOperation = 'source-over'; mctx.drawImage(freezeCv, 0, 0); }
-    else if (trans && trans.still){                   // from a still of the interrupted transition
-      trA.setTransform(1, 0, 0, 1, 0, 0); trA.globalAlpha = 1; trA.globalCompositeOperation = 'source-over'; trA.drawImage(trans.still, 0, 0); render(list, trB, SLOT.LAYERS, LUs, zE);
-      if (fxU && post){ post.run(fxU, trB.canvas, trB, SLOT.ARRIVING_OUT); sideFx = trans.sideFx = true; }
-      if (noFx) drawBypass(noFx, list, trB);   // (0.99.6: the arriving scene's Bypass FX GIFs go in before the transition, not over its snow / number)   // the still has its effects already: only the arriving scene gets them, so the transition's own picture (snow, number) keeps its colours
-      composeTransition(trEase(tp, trans.cfg), trans.cfg);
-    }
     else if (trans && trans.fx && post){                 // going live from Prep: each side with its own effects, then combined
       const aF = fxFrame(clock.beat, trans.fx);
-      render(frameList(now, trans.from, trans.gifs), trA, SLOT.LEAVING_LAYERS, aF.layers, zoomEOf(aF.out)); if (aF.out) post.run(aF.out, trA.canvas, trA, SLOT.LEAVING_OUT); else post.idle(SLOT.LEAVING_OUT);
+      paintLeaving(trans, now, aF.layers, zoomEOf(aF.out)); if (aF.out) post.run(aF.out, trA.canvas, trA, SLOT.LEAVING_OUT); else post.idle(SLOT.LEAVING_OUT);
       render(list, trB, SLOT.LAYERS, LUs, zE); if (fxU) post.run(fxU, trB.canvas, trB, SLOT.ARRIVING_OUT); else post.idle(SLOT.ARRIVING_OUT); if (noFx) drawBypass(noFx, list, trB);
       composeTransition(trEase(tp, trans.cfg), trans.cfg); sideFx = trans.sideFx = true;
     }
     else if (trans){
-      render(frameList(now, trans.from, trans.gifs), trA, SLOT.LEAVING_LAYERS, LUs, zE); render(list, trB, SLOT.LAYERS, LUs, zE);
+      paintLeaving(trans, now, LUs, zE); render(list, trB, SLOT.LAYERS, LUs, zE);
       if (fxU && post){                              // the screen effects on each scene before they're combined: the transition's own picture
         post.run(fxU, trA.canvas, trA, SLOT.LEAVING_OUT); post.run(fxU, trB.canvas, trB, SLOT.ARRIVING_OUT); sideFx = trans.sideFx = true; }   // (snow, tears, OSD) keeps its colours
       if (noFx) drawBypass(noFx, list, trB);
