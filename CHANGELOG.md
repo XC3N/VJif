@@ -4,6 +4,10 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
+## 0.99.40 — 2026/11/12
+
+- Changing scene again while a transition is still running no longer freezes the scene you are leaving. Going back and forth between two scenes with a 4-bar fade, the old scene stopped (it was a still of the screen at that moment) until the new transition ended. Now the running transition is held where it was and both its scenes keep playing underneath, as the leaving side of the new one; the same when a layer's own on / off transition is interrupted. Flipping quickly back and forth keeps the last five held transitions playing, and the picture never jumps: what is hidden under a nearly complete mix is let go, and only a sixth, older one is frozen into a still instead of being cut.
+
 ## 0.99.39 — 2026/11/12
 
 - Feedback is lighter on the graphics card. Each frame with a trail (Feedback, CRT › Phosphor, Glitch › Corrupt / Keyframe, the Game Boy LCD dots) ran the whole effects shader twice: once into a hidden buffer, then again only to copy that buffer onto the screen. Now it is drawn once, straight onto the screen, and that picture is copied (a plain GPU copy, no shader) into the trail's history. Each place with a trail also keeps one full-size buffer instead of two (about 8 MB less each at 1080p). The pictures are the same as before (the render tests match).

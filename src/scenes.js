@@ -60,10 +60,9 @@ function gotoScene(i, beat = clock.beat, instant = false){
   if (i === sceneIdx) return;
   if (hist.ready) commit();                          // an edit still waiting for its undo step gets it now, in its own scene
   // keep what's on screen for the transition (its clips keep playing while it fades / slides out)
-  // changing again mid-transition: the new one starts from what's on screen right now (a still of it), so nothing jumps
-  let still = null;
-  if (!instant && trans && transProgress() < 1 && transCfg.type !== 'cut'){ still = stillOf(); }
-  endTrans(); if (!instant){ trans = makeTrans(layers.map(layerState), pads.map(p => p.gif), beat); if (trans && still) trans.still = still; }
+  // changing again mid-transition: the running one is held where it is and becomes the leaving side, both its scenes still playing
+  const prev = instant ? (endTrans(), null) : interruptTrans();
+  if (!instant){ trans = makeTrans(layers.map(layerState), pads.map(p => p.gif), beat); chainTrans(prev); }
   const left = pads.map(p => p.gif); scenes[sceneIdx] = captureScene(); sceneIdx = i;
   const sc = scenes[i], t0 = beatTime(beat);
   layers.forEach((L, li) => {
@@ -293,11 +292,9 @@ setInterval(() => { if (!document.hidden && performance.now() >= uiQuiet) refres
 function toggleLayer(li){
   const lt = layers[li].tr || 'cut', P = lt === 'cut' ? null : lt === 'armed' ? transCfg : trPresets[+lt];   // each layer's own on / off transition (its card)
   if (P && P.type !== 'cut' && !prep && layers[li].clips.length){
-    let still = null;
-    if (trans && transProgress() < 1) still = stillOf();
-    const from = layers.map(layerState), keep = transCfg; endTrans();
+    const prev = interruptTrans(), from = layers.map(layerState), keep = transCfg;
     transCfg = P; try { trans = makeTrans(from, pads.map(p => p.gif), clock.beat); } finally { transCfg = keep; }
-    if (trans && still) trans.still = still;
+    chainTrans(prev);
   }
   layers[li].on = !layers[li].on; syncLayerUI(); redraw.all = true;
 }

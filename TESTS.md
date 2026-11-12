@@ -6,6 +6,7 @@ the ticks come from FYR's test bench (a private page; ids in `{braces}` match it
 release. Want to help test? Pick an unticked line and open an issue with what you saw.
 
 ## Needs your gear
+- [ ] {ts315} **Scenes keep playing through an interrupted transition** (0.99.40) — Scenes 1 and 2 with different moving GIFs, Fade 4 bars: go to 2, then back to 1 (and 2 again) halfway: the scene you are leaving keeps moving the whole time, no freeze, no jump at the moment you switch.
 - [ ] {ts314} **Feedback frame rate** (0.99.39) — Full render size, output full screen, a busy scene: Feedback (Trails, Tunnel, Spiral) on Output, then on two layers at once. FPS and LOAD in the top bar against 0.99.38 with the same scene: FPS higher or the same, LOAD lower. The trails look and fade as before.
 - [ ] {ts313} **Effects ready quickly on a cold start** (0.99.38) — Close Chrome, start it with `--disable-gpu-shader-disk-cache`, open VJif: Colour / Zoom / Pixel effects work within a few seconds; CRT, Glitch and Codec follow (the monitor › Start line lists "effects + CRT", "+ Glitch"… with their times). Hitting a CRT or Glitch pad before its variant is ready shows the picture without it, then with it. No freeze at any point.
 - [ ] {ts311} **No freeze when opening** (0.99.36) — Close Chrome, start it with `--disable-gpu-shader-disk-cache`, open VJif: the page responds at once (no "not responding"), and effects start working within a minute or so. The monitor (Shift + right-click LOAD) › Start line shows the shader time "in the background", well under the 84 s of 0.99.35.

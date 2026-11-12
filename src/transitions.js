@@ -44,7 +44,45 @@ function makeTrans(from, gifs, beat, free = null){
   const cfg = { ...transCfg }; if (cfg.dir === 'rand') cfg.dir = ['left', 'right', 'up', 'down'][Math.floor(Math.random() * 4)];   // Options › Rnd: a direction picked each time
   return { cfg, from, gifs, b0: beat, len: transCfg.len, free, melt: isMelt(transCfg) ? meltTable(transCfg.px) : null, dis: null };   // (Dissolve's CPU grid is made when it's first needed: only without WebGL)
 }
-function endTrans(){ if (trans && trans.free) trans.free.forEach(freeGif); if (trans && trans.gifs) dropFxCache(trans.gifs); trans = null; }
+function freeTrans(T){ for (; T; T = T.prev){ if (T.free) T.free.forEach(freeGif); if (T.gifs) dropFxCache(T.gifs); } }   // (0.99.40: and the ones it interrupted)
+function endTrans(){ freeTrans(trans); trans = null; }
+// 0.99.40: a scene change (or a layer's on / off) while a transition runs. The running one is kept, its progress held where it was, as
+// the new transition's leaving side: both its scenes keep playing underneath (it used to be a still of the screen: the scene being left froze).
+// Returns it (detached, not ended) or null; `trans` is then null, for the caller to make the new one and give it `.prev`.
+function interruptTrans(){
+  if (!trans || transProgress() >= 1 || transCfg.type === 'cut'){ endTrans(); return null; }
+  const prev = trans; prev.frozen = transProgress(); trans = null; return prev;
+}
+const TR_CHAIN = 5;   // held transitions kept live under a new one (each costs one more scene drawn per frame)
+function chainTrans(prev){
+  if (!prev){ return; }
+  if (!trans){ freeTrans(prev); return; }
+  trans.prev = prev;
+  // what is hidden under a nearly complete held mix is let go (flipping quickly: each flip holds a mix at its small progress, so deep ones
+  // still show: they are only dropped once what is left of them is under ~2%)
+  let w = 1;
+  for (let T = trans; T.prev; T = T.prev){
+    w *= 1 - trEase(T.prev.frozen, T.prev.cfg);
+    if (T.prev.prev && w < 0.02){ freeTrans(T.prev.prev); T.prev.prev = null; break; }
+  }
+  // too deep: the oldest is frozen into a picture (its scenes stop) rather than cut, which would be a hard cut on screen
+  let d = 0, N = trans; while (N.prev && d < TR_CHAIN){ N = N.prev; d++; }
+  if (N.prev){
+    paintLeaving(N, performance.now(), [], 0);
+    const c = document.createElement('canvas'); c.width = CW; c.height = CH; c.getContext('2d').drawImage(trA.canvas, 0, 0);
+    freeTrans(N.prev); N.prev = null; N.leaveStill = c;
+  }
+}
+// paints the picture the transition T leaves (T.prev: that one's mix, held, of its two scenes) into trA
+function paintLeaving(T, now, LUs, zE){
+  if (!T.prev){
+    if (T.leaveStill){ trA.setTransform(1, 0, 0, 1, 0, 0); trA.globalAlpha = 1; trA.globalCompositeOperation = 'source-over'; trA.drawImage(T.leaveStill, 0, 0); }
+    else render(frameList(now, T.from, T.gifs), trA, SLOT.LEAVING_LAYERS, LUs, zE);
+    return; }
+  paintLeaving(T.prev, now, [], zE); render(frameList(now, T.from, T.gifs), trB, SLOT.LAYERS, [], zE);
+  const keep = trans; trans = T.prev; try { composeTransition(trEase(transProgress(), T.prev.cfg), T.prev.cfg); } finally { trans = keep; }
+  trA.setTransform(1, 0, 0, 1, 0, 0); trA.globalAlpha = 1; trA.globalCompositeOperation = 'source-over'; trA.drawImage(master, 0, 0);
+}
 // GIFs no longer on screen let go of their kept coloured frames (fxImage)
 function dropFxCache(gifs){ gifs.forEach(g => { if (g && g.fxC && !pads.some(p => p.gif === g)) g.fxC = null; }); }
 const trA = mkCanvas().getContext('2d', { alpha: false }), trB = mkCanvas().getContext('2d', { alpha: false }), trM = mkCanvas().getContext('2d');
@@ -58,7 +96,7 @@ function dissolveGrid(px){
 // Smooth eases the progress, except for the transitions with their own timing: Stutter's beat grid and Doom's melt
 const isMelt = T => T.type === 'dissolve' && trStyleOf(T) === 'melt';
 const trEase = (p, T) => T.smooth && T.type !== 'stutter' && !isMelt(T) ? p * p * (3 - 2 * p) : p;
-function transProgress(){ if (!trans) return 1; const p = (clock.beat - trans.b0) / trans.len; return p < 0 ? 0 : p > 1 ? 1 : p; }
+function transProgress(){ if (!trans) return 1; if (trans.frozen != null) return trans.frozen; const p = (clock.beat - trans.b0) / trans.len; return p < 0 ? 0 : p > 1 ? 1 : p; }
 // combine trA (leaving) and trB (arriving) on the master at progress e (0 → 1)
 // The screen melt from Doom (1993), same rules: 160 columns, each starting up to 15 ticks late (neighbours differ by
 // at most one), falling 1, 2, 4, 8, 16 px per tick as it speeds up, then 8 px per tick, down a 200 px screen.
