@@ -53,16 +53,32 @@ function interruptTrans(){
   if (!trans || transProgress() >= 1 || transCfg.type === 'cut'){ endTrans(); return null; }
   const prev = trans; prev.frozen = transProgress(); trans = null; return prev;
 }
+const TR_CHAIN = 5;   // held transitions kept live under a new one (each costs one more scene drawn per frame)
 function chainTrans(prev){
-  if (!prev) return;
+  if (!prev){ return; }
   if (!trans){ freeTrans(prev); return; }
   trans.prev = prev;
-  let d = 0, T = trans; while (T.prev && ++d < 4) T = T.prev;   // a few deep at most (flipping back and forth): the oldest one is let go
-  if (T.prev){ freeTrans(T.prev); T.prev = null; }
+  // what is hidden under a nearly complete held mix is let go (flipping quickly: each flip holds a mix at its small progress, so deep ones
+  // still show: they are only dropped once what is left of them is under ~2%)
+  let w = 1;
+  for (let T = trans; T.prev; T = T.prev){
+    w *= 1 - trEase(T.prev.frozen, T.prev.cfg);
+    if (T.prev.prev && w < 0.02){ freeTrans(T.prev.prev); T.prev.prev = null; break; }
+  }
+  // too deep: the oldest is frozen into a picture (its scenes stop) rather than cut, which would be a hard cut on screen
+  let d = 0, N = trans; while (N.prev && d < TR_CHAIN){ N = N.prev; d++; }
+  if (N.prev){
+    paintLeaving(N, performance.now(), [], 0);
+    const c = document.createElement('canvas'); c.width = CW; c.height = CH; c.getContext('2d').drawImage(trA.canvas, 0, 0);
+    freeTrans(N.prev); N.prev = null; N.leaveStill = c;
+  }
 }
 // paints the picture the transition T leaves (T.prev: that one's mix, held, of its two scenes) into trA
 function paintLeaving(T, now, LUs, zE){
-  if (!T.prev){ render(frameList(now, T.from, T.gifs), trA, SLOT.LEAVING_LAYERS, LUs, zE); return; }
+  if (!T.prev){
+    if (T.leaveStill){ trA.setTransform(1, 0, 0, 1, 0, 0); trA.globalAlpha = 1; trA.globalCompositeOperation = 'source-over'; trA.drawImage(T.leaveStill, 0, 0); }
+    else render(frameList(now, T.from, T.gifs), trA, SLOT.LEAVING_LAYERS, LUs, zE);
+    return; }
   paintLeaving(T.prev, now, [], zE); render(frameList(now, T.from, T.gifs), trB, SLOT.LAYERS, [], zE);
   const keep = trans; trans = T.prev; try { composeTransition(trEase(transProgress(), T.prev.cfg), T.prev.cfg); } finally { trans = keep; }
   trA.setTransform(1, 0, 0, 1, 0, 0); trA.globalAlpha = 1; trA.globalCompositeOperation = 'source-over'; trA.drawImage(master, 0, 0);

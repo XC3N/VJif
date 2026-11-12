@@ -6,7 +6,7 @@ The version shows in the About panel (click the logo). What still needs testing 
 
 ## 0.99.40 — 2026/11/12
 
-- Changing scene again while a transition is still running no longer freezes the scene you are leaving. Going back and forth between two scenes with a 4-bar fade, the old scene stopped (it was a still of the screen at that moment) until the new transition ended. Now the running transition is held where it was and both its scenes keep playing underneath, as the leaving side of the new one; the same when a layer's own on / off transition is interrupted. Flipping many times in a row keeps the last four transitions; older ones drop out.
+- Changing scene again while a transition is still running no longer freezes the scene you are leaving. Going back and forth between two scenes with a 4-bar fade, the old scene stopped (it was a still of the screen at that moment) until the new transition ended. Now the running transition is held where it was and both its scenes keep playing underneath, as the leaving side of the new one; the same when a layer's own on / off transition is interrupted. Flipping quickly back and forth keeps the last five held transitions playing, and the picture never jumps: what is hidden under a nearly complete mix is let go, and only a sixth, older one is frozen into a still instead of being cut.
 
 ## 0.99.39 — 2026/11/12
 

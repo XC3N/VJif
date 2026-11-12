@@ -19,6 +19,13 @@ async def main():
       return { chained: t2.prev === t1, frozen: t1.frozen, varies: new Set(sums).size, sums }; }""")
     print('interrupt', r); assert r['chained'] and abs(r['frozen'] - 0.5) < 1e-6 and r['varies'] > 1, r
     d = await pg.evaluate("""() => { let n = 0; for (let k = 0; k < 8; k++){ clock.beat += 1; gotoScene(k % 2 ? 0 : 1, clock.beat); } let T = trans; while (T.prev){ n++; T = T.prev; } endTrans(); return [n, trans]; }""")
-    print('depth', d); assert d[0] <= 4 and d[1] is None, d
+    print('depth', d); assert d[0] <= 5 and d[1] is None, d
+    # flipping quickly (a fraction of a beat apart, in a 4-bar fade): the picture never jumps at a flip (the deep ones used to be cut: a hard cut)
+    f = await pg.evaluate("""() => { const sum = () => { const d = mctx.getImageData(0, 0, W, H).data; let s = 0; for (let i = 0; i < d.length; i += 61) s += d[i] + d[i + 1] * 3 + d[i + 2] * 7; return s; };
+      transCfg = normTrans({ type: 'fade', style: 'cross', len: 16, dir: 'left', px: 12 }); const out = [];
+      for (let k = 0; k < 16; k++){ if (k) clock.beat += 0.4; redraw.all = true; drawFrame(performance.now()); const a = sum();
+        gotoScene(k % 2 ? 0 : 1, clock.beat); redraw.all = true; drawFrame(performance.now()); out.push(Math.abs(sum() - a) / a); }
+      endTrans(); return out; }""")
+    print('flips', [round(x, 3) for x in f]); assert max(f) < 0.03, f
     await b.close()
 asyncio.run(main())
