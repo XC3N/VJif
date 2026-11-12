@@ -436,7 +436,7 @@ function makePost(){
     // has no more than it needs: an effect whose variant isn't ready yet is left out until it is.
     const FXSRC = `precision highp float;
 ${FX_GLSL}
-      uniform sampler2D tex, prev; uniform vec2 res; uniform float blit, fbInit, time, beat;
+      uniform sampler2D tex, prev; uniform vec2 res; uniform float fbInit, time, beat;
       uniform float colr, colrS, hue, strobe, strobeS, rays, poster, posterS, zoom, bulge, wob, wobS, wobPh, mirror, mirS, mirN, mirZ, mirK, mirA, keepA, duoI, palD, palLo, palHi, palYlo, palYhi, palP, palDot, palLum,
                     glitch, glS, gseed, glSz, codec, cdS, cseed, cdSz, dgs, rgb, rgbS, crtSz, pixel, pixS, pixSize, fb, fbS, fbK, vDrop, payNeg, shakeZ, wobZ;
       uniform float glA[12], rgA[12], cdA[12];   // Glitch / CRT: each stacked style's own Amount, as a share of the effect's (0.92)
@@ -544,7 +544,6 @@ ${FX_GLSL}
         return on > 0.5 ? B : A;
       }
       void main(){
-        if (blit > 0.5){ gl_FragColor = texture2D(tex, vec2(uv.x, 1.0 - uv.y)); return; }
         vec2 p = uv, a = A();
         float split = rgb > 0.001 ? rgb * max(max(HAS(rgbS, S_rgb_split) ? 0.025 * rgA[int(S_rgb_split)] : 0.0, HAS(rgbS, S_rgb_vhs) ? 0.006 * rgA[int(S_rgb_vhs)] : 0.0), max(HAS(rgbS, S_rgb_scan) ? 0.0015 * rgA[int(S_rgb_scan)] : 0.0, HAS(rgbS, S_rgb_phos) ? 0.002 * rgA[int(S_rgb_phos)] : 0.0)) : 0.0;   // stacked styles: the widest colour split
         float payU = 1.0;                              // pay-TV: where this pixel falls across the line (0 = the blanking bar's edge)
@@ -903,13 +902,13 @@ if (codec > 0.001 && HAS(cdS, S_codec_ring)){ float gq = min(1.0, codec * cdA[in
       [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]].forEach(([k, v]) => gl.texParameteri(gl.TEXTURE_2D, k, v));
       return t; };
     const src = mkTex();
-    // per target (output, layers 1–4): two render targets swapped each frame — one is drawn into, the other holds
-    // that target's previous result (for Feedback). Made the first time a target gets an effect.
+    // per target (output, layers 1–4): one history texture holding that target's previous result (for Feedback, Phosphor…).
+    // Made the first time a target gets a trail effect. (Its framebuffer is only used to clear it.)
     const mkRT = () => { const t = mkTex(); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, CW, CH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
       const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); return { t, f }; };
     const slots = [];
-    const slotOf = n => slots[n] || (slots[n] = { rt: [mkRT(), mkRT()], cur: 0, fbWas: false });
+    const slotOf = n => slots[n] || (slots[n] = { h: mkRT(), fbWas: false });
     const PX_NAMES = new Set(['crtSz', 'pixSize', 'glSz', 'cdSz']);   // (palDot is worked out in real pixels: lcdDot)   // sizes given in canvas pixels
     const NAMES = ['colr', 'colrS', 'hue', 'strobe', 'strobeS', 'rays', 'poster', 'posterS', 'zoom', 'bulge', 'wob', 'wobS', 'wobPh', 'mirror', 'mirS', 'mirN', 'mirZ', 'mirK', 'mirA', 'keepA', 'duoI', 'palD', 'palLo', 'palHi', 'palYlo', 'palYhi', 'palP', 'palDot', 'palLum',
                    'glitch', 'glS', 'gseed', 'glSz', 'codec', 'cdS', 'cseed', 'cdSz', 'dgs', 'rgb', 'rgbS', 'crtSz', 'pixel', 'pixS', 'pixSize', 'fb', 'fbS', 'fbK', 'vDrop', 'payNeg', 'shakeZ', 'wobZ', 'time', 'beat'];
@@ -918,7 +917,7 @@ if (codec > 0.001 && HAS(cdS, S_codec_ring)){ float gq = min(1.0, codec * cdA[in
     const use = R => { cur = R; gl.useProgram(R.P); gl.enableVertexAttribArray(R.loc); gl.vertexAttribPointer(R.loc, 2, gl.FLOAT, false, 0, 0); };
     const fxReady = R => { if (R.ready || R.dead) return R.ready; if (par && !gl.getProgramParameter(R.P, par.COMPLETION_STATUS_KHR)) return false;
       if (!gl.getProgramParameter(R.P, gl.LINK_STATUS)){ R.dead = true; console.warn('screen effects: ' + R.P.nm + ' unavailable: ' + (gl.getProgramInfoLog(R.P) || '')); return false; }
-      gl.useProgram(R.P); R.loc = gl.getAttribLocation(R.P, 'p'); [...NAMES, 'glA', 'rgA', 'cdA', 'res', 'shake', 'tex', 'prev', 'blit', 'fbInit', 'palBg', 'plut', 'palN'].forEach(k => R.u[k] = gl.getUniformLocation(R.P, k));
+      gl.useProgram(R.P); R.loc = gl.getAttribLocation(R.P, 'p'); [...NAMES, 'glA', 'rgA', 'cdA', 'res', 'shake', 'tex', 'prev', 'fbInit', 'palBg', 'plut', 'palN'].forEach(k => R.u[k] = gl.getUniformLocation(R.P, k));
       gl.uniform1i(R.u.tex, 0); gl.uniform1i(R.u.prev, 1); gl.uniform1i(R.u.plut, 2); R.ready = true;
       if (R !== fx[0]){ bootT.link.push([R.P.nm, Math.round(performance.now() - R.t0)]); redraw.all = true; }
       use(cur.ready ? cur : R); return true; };
@@ -1003,22 +1002,22 @@ if (codec > 0.001 && HAS(cdS, S_codec_ring)){ float gq = min(1.0, codec * cdA[in
       if (String(U.shake) !== last.shake){ last.shake = String(U.shake); gl.uniform3fv(u.shake, U.shake); }
       if (U.palI !== last.palI){ last.palI = U.palI; const P = FX_PALS[U.palI] || FX_PALS[0]; let bg = 0, by = -1; for (let i = 0; i < P.c.length; i++){ const y = P.f[i * 3] * 0.299 + P.f[i * 3 + 1] * 0.587 + P.f[i * 3 + 2] * 0.114; if (y > by){ by = y; bg = i; } }   // (the Dot Matrix backing: the lightest colour)
         gl.uniform3f(u.palBg, P.f[bg * 3], P.f[bg * 3 + 1], P.f[bg * 3 + 2]); gl.uniform1f(u.palN, P.c.length); }   // the 64-colour palette only when it changes
-      gl.uniform1f(u.blit, 0);
       const fbOn = U.fb > 0.001, trail = fbOn || (U.rgb > 0.001 && (U.rgbS >> FXS.rgb.phos & 1)) || (U.glitch > 0.001 && (U.glS >> FXS.glitch.corrupt & 1 || U.glS >> FXS.glitch.keyfr & 1)) || (Math.abs(U.palDot || 0) > 0.5 && U.colr > 0.001);   // only Feedback, Phosphor, Glitch › Corrupt / Keyframe and the Game Boy LCD read the previous frame
       if (!trail){                                   // straight onto the canvas: no render target, no second pass
         const S = slots[slot]; if (S){ S.fbWas = false; S.stale = true; }
         gl.uniform1f(u.fbInit, 0); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      } else {                                       // into this slot's render target (kept as the next frame's "previous"), then onto the canvas
-        const S = slotOf(slot), rt = S.rt, cur = S.cur;
+      } else {                                       // 0.99.39: straight onto the canvas too, then copied into this slot's history (the next frame's "previous")
+        // It used to draw into a render target and then run the whole effects shader a second time just to copy that onto the canvas,
+        // with two full-size targets per slot: a second full-screen pass of the big shader each frame, which an integrated GPU felt most.
+        // The canvas holds the same pixels, the same way up, so a plain copy (copyTexSubImage2D) of it is the history now.
+        const S = slotOf(slot), h = S.h;
         const tNow = performance.now(); if (S.t && tNow - S.t > 250){ S.stale = true; S.fbWas = false; } S.t = tNow;   // a slot that sat unused (the scene being left in an earlier transition, Prep's) starts clean: no trail of what it showed back then
-        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src);   // (making a slot's targets binds them)
-        if (S.stale){ gl.bindFramebuffer(gl.FRAMEBUFFER, rt[1 - cur].f); gl.clear(gl.COLOR_BUFFER_BIT); S.stale = false; }   // frames drawn straight left no trail
-        gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, rt[1 - cur].t);
+        if (S.stale){ gl.bindFramebuffer(gl.FRAMEBUFFER, h.f); gl.clear(gl.COLOR_BUFFER_BIT); S.stale = false; }   // frames drawn straight left no trail
+        gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, h.t);
         gl.uniform1f(u.fbInit, fbOn && !S.fbWas ? 1 : 0); S.fbWas = fbOn;
-        gl.bindFramebuffer(gl.FRAMEBUFFER, rt[cur].f); gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, rt[cur].t);
-        gl.clear(gl.COLOR_BUFFER_BIT); gl.uniform1f(u.blit, 1); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-        S.cur = 1 - cur;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src);   // (making a slot's target binds it)
+        gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.activeTexture(gl.TEXTURE1); gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, CW, CH); gl.activeTexture(gl.TEXTURE0);
       }
       to.setTransform(1, 0, 0, 1, 0, 0); to.globalAlpha = 1; to.globalCompositeOperation = 'source-over';
       if (slot === 0){ to.fillStyle = '#000'; to.fillRect(0, 0, CW, CH); } else to.clearRect(0, 0, CW, CH);   // what moved away is black / see-through
@@ -1026,7 +1025,7 @@ if (codec > 0.001 && HAS(cdS, S_codec_ring)){ float gq = min(1.0, codec * cdA[in
     }, swap(a, b){ const t = slots[a]; slots[a] = slots[b]; slots[b] = t; }, idle(slot){ const S = slots[slot]; if (S){ S.fbWas = false; S.stale = true; } },   // nothing on it: the trail starts over next time
     tick, resize(){                                        // new canvas format: the render targets follow (feedback history starts over)
       cv.width = CW; cv.height = CH; gl.viewport(0, 0, CW, CH);
-      slots.forEach(S => { if (!S) return; S.rt.forEach(r => { gl.bindTexture(gl.TEXTURE_2D, r.t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, CW, CH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null); }); S.fbWas = false; S.stale = true; });
+      slots.forEach(S => { if (!S) return; gl.bindTexture(gl.TEXTURE_2D, S.h.t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, CW, CH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null); S.fbWas = false; S.stale = true; });
     } };
     };
     let impl = null, dead = false;
