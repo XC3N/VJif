@@ -4,6 +4,10 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
+## 0.99.39 — 2026/11/12
+
+- Feedback is lighter on the graphics card. Each frame with a trail (Feedback, CRT › Phosphor, Glitch › Corrupt / Keyframe, the Game Boy LCD dots) ran the whole effects shader twice: once into a hidden buffer, then again only to copy that buffer onto the screen. Now it is drawn once, straight onto the screen, and that picture is copied (a plain GPU copy, no shader) into the trail's history. Each place with a trail also keeps one full-size buffer instead of two (about 8 MB less each at 1080p). The pictures are the same as before (the render tests match).
+
 ## 0.99.38 — 2026/11/12
 
 - Effects are ready about a second after opening, instead of up to a minute, when Chrome has no saved copy of the shaders. 0.99.36 stopped the freeze but the effects shader still took 57 s to compile in the background on FYR's machine (20 s on its own). Timing it piece by piece there showed the time grows much faster than the shader: whole, 20 s; without the CRT, Glitch and Codec parts, 1.2 s. So it is now built in variants: the base one (Colour, Posterize, Strobe, Feedback, Zoom, Shake, Wobble, Mirror, Pixel) first, then the ones that add CRT, Glitch and Codec, one at a time in the background, or at once when one is needed. An effect whose variant isn't ready yet is left out until it is (seconds, once per VJif version). The picture is the same as before. The monitor's Start line lists each variant's time.
