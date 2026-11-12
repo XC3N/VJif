@@ -6,6 +6,8 @@ the ticks come from FYR's test bench (a private page; ids in `{braces}` match it
 release. Want to help test? Pick an unticked line and open an issue with what you saw.
 
 ## Needs your gear
+- [ ] {ts311} **No freeze when opening** (0.99.36) — Close Chrome, start it with `--disable-gpu-shader-disk-cache`, open VJif: the page responds at once (no "not responding"), and effects start working within a minute or so. The monitor (Shift + right-click LOAD) › Start line shows the shader time "in the background", well under the 84 s of 0.99.35.
+- [ ] {ts312} **Palettes after the table change** (0.99.36) — Colour › Palette on your usual scenes (EGA, CGA, C64, ZX Spectrum, Game Boy with Dots; Dither Noise / Bayer / Check; Fit range on and off): the picture looks as it did in 0.99.35, no banding or wrong colours.
 - [ ] {ts310} **Output ▾ zoom / position** (0.99.35) — Open the output, double-click it for full screen on the projector, then Output ▾ › Zoom 60 %, X / Y: the picture shrinks and moves live, black around it, and fits a smaller screen. Reset view returns to 100 %. Close and reopen: the view is kept.
 - [x] {g1} **MIDI learn with your controller** — Settings › MIDI control › Learn → click a pad → hit a pad on the controller. Map a knob or fader to layer opacity and to effect Amt.
 - [x] {g2} **MIDI mappings survive a reload** — reload VJif: mappings work again without re-learning.

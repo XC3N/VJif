@@ -424,16 +424,19 @@ function makePost(){
     let lost = false;
     cv.addEventListener('webglcontextlost', e => { e.preventDefault(); lost = true; redraw.all = true; });
     cv.addEventListener('webglcontextrestored', () => { const p = makePost(); if (p){ post = p; redraw.all = true; } });
-    const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
-    const prog = gl.createProgram();
-    gl.attachShader(prog, sh(gl.VERTEX_SHADER, `attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x + 1.0, 1.0 - p.y) * 0.5; gl_Position = vec4(p, 0.0, 1.0); }`));
-    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `precision highp float;
+    // 0.99.36: the programs compile in the background where the browser can (KHR_parallel_shader_compile). The effects shader took Direct3D over a minute
+    // whenever Chrome had no saved copy of it, and asking for its status straight away froze the whole page for that time. Now nothing asks until the
+    // browser says it's done; until then `soft` stands in (as with a lost context). Without the extension: built at the first use, as before.
+    const par = gl.getExtension('KHR_parallel_shader_compile'), t0 = performance.now(), progs = [];
+    const mk = (name, fs) => { const P = gl.createProgram(); P.sh = [[gl.VERTEX_SHADER, `attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x + 1.0, 1.0 - p.y) * 0.5; gl_Position = vec4(p, 0.0, 1.0); }`], [gl.FRAGMENT_SHADER, fs]].map(([t, s]) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); gl.attachShader(P, o); return o; });
+      gl.linkProgram(P); P.nm = name; progs.push(P); return P; };
+    const prog = mk('effects', `precision highp float;
 ${FX_GLSL}
       uniform sampler2D tex, prev; uniform vec2 res; uniform float blit, fbInit, time, beat;
       uniform float colr, colrS, hue, strobe, strobeS, rays, poster, posterS, zoom, bulge, wob, wobS, wobPh, mirror, mirS, mirN, mirZ, mirK, mirA, keepA, duoI, palD, palLo, palHi, palYlo, palYhi, palP, palDot, palLum,
                     glitch, glS, gseed, glSz, codec, cdS, cseed, cdSz, dgs, rgb, rgbS, crtSz, pixel, pixS, pixSize, fb, fbS, fbK, vDrop, payNeg, shakeZ, wobZ;
       uniform float glA[12], rgA[12], cdA[12];   // Glitch / CRT: each stacked style's own Amount, as a share of the effect's (0.92)
-      uniform vec3 shake; uniform vec3 pal[64], palOk[64]; uniform float palN; varying vec2 uv;
+      uniform vec3 shake; uniform vec3 palBg; uniform float palN; uniform sampler2D plut; varying vec2 uv;
       ${OKLAB_GLSL}
       float h1(float n){ return fract(sin(n * 12.9898) * 43758.5453); }
       float h2(vec2 v){ return fract(sin(dot(v, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -487,8 +490,13 @@ ${FX_GLSL}
       }
       float bayer2(vec2 a){ a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }
       float bayer4(vec2 a){ return bayer2(0.5 * a) * 0.25 + bayer2(a); }
-      ${PALSNAP_GLSL}
-      vec3 palSnap(vec3 c){ if (palHi > palLo) c = fitCol(c, palLo, palHi, palYlo, palYhi, palLum); return palPick(c, palD, palP, floor(gl_FragCoord.xy / (abs(palDot) > 0.5 ? abs(palDot) : max(1.0, floor(res.y / 360.0))))); }   // dither cells: chunky dots at any output size (the Game Boy's LCD: one cell per screen pixel)
+      ${PALFIT_GLSL}
+      // the palette's two colours for c0 (the colour before Fit range) come from the table makePost draws (plut: 64 × 64 tiles, 8 across; the second colour half-way down)
+      vec3 palPick(vec3 c, vec3 c0, float d, float p, vec2 q){ ${PALDITH_GLSL}
+        vec3 n = floor(clamp(c0, 0.0, 1.0) * 63.0 + 0.5); vec2 at = (vec2(mod(n.b, 8.0), floor(n.b / 8.0)) * 64.0 + n.rg + 0.5) / vec2(512.0, 1024.0);
+        vec4 B = texture2D(plut, at); vec3 best = B.rgb, sec = texture2D(plut, at + vec2(0.0, 0.5)).rgb; float tk = B.a, t = 0.0;
+        ${PALMIX_GLSL} }
+      vec3 palSnap(vec3 c){ vec3 c0 = c; if (palHi > palLo) c = fitCol(c, palLo, palHi, palYlo, palYhi, palLum); return palPick(c, c0, palD, palP, floor(gl_FragCoord.xy / (abs(palDot) > 0.5 ? abs(palDot) : max(1.0, floor(res.y / 360.0))))); }   // dither cells: chunky dots at any output size (the Game Boy's LCD: one cell per screen pixel)
       vec3 hueRot(vec3 c, float an){                 // rotate the hue in YIQ space
         vec3 y = mat3(0.299, 0.596, 0.211, 0.587, -0.274, -0.523, 0.114, -0.322, 0.312) * c;
         float cs = cos(an), sn = sin(an); y.yz = vec2(y.y * cs - y.z * sn, y.y * sn + y.z * cs);
@@ -505,7 +513,7 @@ ${FX_GLSL}
         float y = dot(c, vec3(0.299, 0.587, 0.114));
         if (colr > 0.001){ if (IS(colrS, S_colour_pal)){ if (bayer4(gl_FragCoord.xy / max(1.0, floor(res.y / 360.0)) + 7.0) < colr * 1.0001) c = palSnap(c);   // palette: pixels switch over in a dither pattern as the envelope rises / falls (no muddy mix)
             if (palDot > 0.5){ vec2 f = mod(gl_FragCoord.xy, palDot); float gw = max(1.0, floor(palDot * 0.14 + 0.5));   // Dot Matrix (0.89, after the DMG's LCD): thin gaps between the dots
-              vec3 bg = pal[0]; float by = -1.0; for (int i = 0; i < 64; i++){ if (float(i) >= palN) break; float y = dot(pal[i], vec3(0.299, 0.587, 0.114)); if (y > by){ by = y; bg = pal[i]; } }
+              vec3 bg = palBg;
               // the gap shows the reflective backing (the palette's lightest colour) with this dot's shadow on it: the liquid crystal
               // sits above the reflector, so each dark dot casts a faint copy down and to the right
               if (f.x > palDot - gw || f.y < gw) c = mix(c, mix(bg, c, 0.45), 0.8 * colr);   // (the gaps a touch quieter: a grid, not a tartan)
@@ -736,59 +744,13 @@ ${FX_GLSL}
           c = mix(c, c / max(max(c.r, max(c.g, c.b)), 0.25) * (1.0 - smoothstep(-aa, aa, e)), clamp(pixel * 4.0, 0.0, 1.0)); }
         if (pixel > 0.001 && IS(pixS, S_pixel_ansi)){ float n = res.x / mix(1.0, pixSize, pixel); vec2 cell = vec2(n, n * res.y / res.x * 0.5); c = mix(c, ansi(c, fract(uv * cell)), clamp(pixel * 4.0, 0.0, 1.0)); }
         gl_FragColor = vec4(clamp(c, 0.0, 1.0), clamp(al, 0.0, 1.0));
-      }`));
-    linkChk(gl, prog, 'effects');
-    gl.useProgram(prog);
-    const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-    const loc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    const mkTex = () => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
-      [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]].forEach(([k, v]) => gl.texParameteri(gl.TEXTURE_2D, k, v));
-      return t; };
-    const src = mkTex();
-    // per target (output, layers 1–4): two render targets swapped each frame — one is drawn into, the other holds
-    // that target's previous result (for Feedback). Made the first time a target gets an effect.
-    const mkRT = () => { const t = mkTex(); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, CW, CH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-      const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null); return { t, f }; };
-    const slots = [];
-    const slotOf = n => slots[n] || (slots[n] = { rt: [mkRT(), mkRT()], cur: 0, fbWas: false });
-    const PX_NAMES = new Set(['crtSz', 'pixSize', 'glSz', 'cdSz']);   // (palDot is worked out in real pixels: lcdDot)   // sizes given in canvas pixels
-    const NAMES = ['colr', 'colrS', 'hue', 'strobe', 'strobeS', 'rays', 'poster', 'posterS', 'zoom', 'bulge', 'wob', 'wobS', 'wobPh', 'mirror', 'mirS', 'mirN', 'mirZ', 'mirK', 'mirA', 'keepA', 'duoI', 'palD', 'palLo', 'palHi', 'palYlo', 'palYhi', 'palP', 'palDot', 'palLum',
-                   'glitch', 'glS', 'gseed', 'glSz', 'codec', 'cdS', 'cseed', 'cdSz', 'dgs', 'rgb', 'rgbS', 'crtSz', 'pixel', 'pixS', 'pixSize', 'fb', 'fbS', 'fbK', 'vDrop', 'payNeg', 'shakeZ', 'wobZ', 'time', 'beat'];
-    const last = {};                                  // the uniforms' current values (a uniform keeps its value until it's set again)
-    const u = {}; [...NAMES, 'glA', 'rgA', 'cdA', 'res', 'shake', 'tex', 'prev', 'blit', 'fbInit', 'pal', 'palOk', 'palN'].forEach(k => u[k] = gl.getUniformLocation(prog, k));
-    gl.uniform1i(u.tex, 0); gl.uniform1i(u.prev, 1);
-    gl.viewport(0, 0, CW, CH);
-    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false); gl.clearColor(0, 0, 0, 0);
-    // run(U, from, to, slot): the effects in U applied to canvas `from`, the result drawn into context `to`
-    // (slot 0 = the output, 1–4 = layers; each keeps its own Feedback history)
-    // Luma transition: a second small program in the same context
-    const lp = gl.createProgram();
-    gl.attachShader(lp, sh(gl.VERTEX_SHADER, `attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x + 1.0, 1.0 - p.y) * 0.5; gl_Position = vec4(p, 0.0, 1.0); }`));
-    gl.attachShader(lp, sh(gl.FRAGMENT_SHADER, `precision mediump float; uniform sampler2D a, b, c; uniform float e, inv, sw; varying vec2 uv;
+      }`);
+    const lp = mk('layers', `precision mediump float; uniform sampler2D a, b, c; uniform float e, inv, sw; varying vec2 uv;
       void main(){ vec4 A = texture2D(a, uv), B = texture2D(b, uv); float l0 = dot(A.rgb, vec3(0.299, 0.587, 0.114)), t = e * (1.0 + sw);
         float l = texture2D(c, vec2((l0 * 255.0 + 0.5) / 256.0, 0.5)).a;   // brightness → its rank in this scene (0 = darkest, 1 = brightest)
         l = mix(l, 1.0 - l, inv);                     // Options › Dark: the darkest parts change first
-        gl_FragColor = vec4(mix(A.rgb, B.rgb, smoothstep(1.0 - t, 1.0 + sw - t, l)), 1.0); }`));
-    linkChk(gl, lp, 'layers');
-    const lu = { a: gl.getUniformLocation(lp, 'a'), b: gl.getUniformLocation(lp, 'b'), c: gl.getUniformLocation(lp, 'c'), e: gl.getUniformLocation(lp, 'e'), inv: gl.getUniformLocation(lp, 'inv'), sw: gl.getUniformLocation(lp, 'sw') }, lpLoc = gl.getAttribLocation(lp, 'p'), texB = mkTex(), texC = mkTex();
-    // Luma pacing: the edge sweeps through the old scene's brightness *ranks*, not raw brightness, so a dark or a bright
-    // scene takes the same time (equal areas change per moment). The ranks come from a 64×36 copy, every 4th frame.
-    const rk = document.createElement('canvas'); rk.width = 64; rk.height = 36; const rx = rk.getContext('2d', { willReadFrequently: true });
-    const rank = new Uint8Array(256); let rankN = 0;
-    const ranks = A => {
-      rx.drawImage(A, 0, 0, 64, 36); const d = rx.getImageData(0, 0, 64, 36).data, hist = new Uint32Array(256), n = d.length / 4;
-      for (let i = 0; i < d.length; i += 4) hist[Math.round(d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114)]++;
-      let below = 0; for (let v = 0; v < 256; v++){ rank[v] = Math.round(255 * (below + hist[v] / 2) / n); below += hist[v]; }   // mid-rank: a flat scene sits at 0.5
-      for (let v = 1; v < 256; v++) if (!hist[v] && rank[v] < rank[v - 1]) rank[v] = rank[v - 1];
-    };
-    // Transitions that used to be drawn bit by bit on the CPU (hundreds of drawImage / fillRect calls, or a loop over
-    // every block): Dissolve, Glitch › Scramble and TV › VHS, as one shader pass over the two scenes.
-    // mode 1 dissolve · 2 scramble (no transition uses it since 0.84; kept for now) · 3 vhs. Pixels: P (y down, like the canvases).
-    const tp = gl.createProgram();
-    gl.attachShader(tp, sh(gl.VERTEX_SHADER, `attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x + 1.0, 1.0 - p.y) * 0.5; gl_Position = vec4(p, 0.0, 1.0); }`));
-    gl.attachShader(tp, sh(gl.FRAGMENT_SHADER, `
+        gl_FragColor = vec4(mix(A.rgb, B.rgb, smoothstep(1.0 - t, 1.0 + sw - t, l)), 1.0); }`);
+    const tp = mk('transitions', `
       #ifdef GL_FRAGMENT_PRECISION_HIGH
       precision highp float;
       #else
@@ -838,15 +800,87 @@ ${FX_GLSL}
             if (mod(floor(P.y), 3.0) < 0.5) c *= 1.0 - 0.22 * k;   // scanlines
           }
         }
-        gl_FragColor = vec4(c, 1.0); }`));
-    linkChk(gl, tp, 'transitions');
+        gl_FragColor = vec4(c, 1.0); }`);
+    // The palette table (0.99.36): for each of 64 × 64 × 64 colours, the palette's best match (rgb) with the bracketing share (alpha), and below it the second
+    // colour. Drawn once per palette / Fit range by this small program; the effects shader reads its two colours from it instead of searching the palette itself.
+    const pl = mk('palette', `precision highp float; uniform vec3 pal[64], palOk[64]; uniform float palN, palLo, palHi, palYlo, palYhi, palLum;
+      ${OKLAB_GLSL}
+      ${PALFIT_GLSL}
+      void main(){ vec2 P = floor(gl_FragCoord.xy); float low = step(512.0, P.y); P.y -= 512.0 * low; vec2 tile = floor(P / 64.0); vec3 c = vec3(P - tile * 64.0, tile.x + tile.y * 8.0) / 63.0; float d = 1.0;
+        fitOn = 0.0; if (palHi > palLo) c = fitCol(c, palLo, palHi, palYlo, palYhi, palLum);
+        ${PALFIND_GLSL}
+        gl_FragColor = low > 0.5 ? vec4(sec, 1.0) : vec4(best, tk); }`);
+    // No GPU (a lost context), or the shaders still compiling: Luma is a plain crossfade, the other GPU transitions are drawn by their CPU versions, effects show the picture as it is.
+    const soft = { luma(A, B, e){
+          mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.globalCompositeOperation = 'source-over';
+          mctx.globalAlpha = 1; mctx.drawImage(A, 0, 0); mctx.globalAlpha = Math.min(1, Math.max(0, e)); mctx.drawImage(B, 0, 0); mctx.globalAlpha = 1; return;
+      }, trans(){ return false; }, run(U, from = master, to = mctx, slot = 0){
+          if (to.canvas !== from){ to.setTransform(1, 0, 0, 1, 0, 0); to.globalAlpha = 1; to.globalCompositeOperation = 'source-over';
+            if (slot === 0){ to.fillStyle = '#000'; to.fillRect(0, 0, CW, CH); } else to.clearRect(0, 0, CW, CH); to.drawImage(from, 0, 0); }
+      } };
+    const build = () => {
+    for (const P of progs) if (!gl.getProgramParameter(P, gl.LINK_STATUS)) throw new Error(P.nm + ': ' + (gl.getProgramInfoLog(P) || '') + ' ' + P.sh.map(o => gl.getShaderInfoLog(o) || '').join(' '));
+    bootT.link.push(['effects, layers, transitions, palette' + (par ? ' (in the background)' : ''), Math.round(performance.now() - t0)]);
+    gl.useProgram(prog);
+    const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    const mkTex = () => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+      [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]].forEach(([k, v]) => gl.texParameteri(gl.TEXTURE_2D, k, v));
+      return t; };
+    const src = mkTex();
+    // per target (output, layers 1–4): two render targets swapped each frame — one is drawn into, the other holds
+    // that target's previous result (for Feedback). Made the first time a target gets an effect.
+    const mkRT = () => { const t = mkTex(); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, CW, CH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); return { t, f }; };
+    const slots = [];
+    const slotOf = n => slots[n] || (slots[n] = { rt: [mkRT(), mkRT()], cur: 0, fbWas: false });
+    const PX_NAMES = new Set(['crtSz', 'pixSize', 'glSz', 'cdSz']);   // (palDot is worked out in real pixels: lcdDot)   // sizes given in canvas pixels
+    const NAMES = ['colr', 'colrS', 'hue', 'strobe', 'strobeS', 'rays', 'poster', 'posterS', 'zoom', 'bulge', 'wob', 'wobS', 'wobPh', 'mirror', 'mirS', 'mirN', 'mirZ', 'mirK', 'mirA', 'keepA', 'duoI', 'palD', 'palLo', 'palHi', 'palYlo', 'palYhi', 'palP', 'palDot', 'palLum',
+                   'glitch', 'glS', 'gseed', 'glSz', 'codec', 'cdS', 'cseed', 'cdSz', 'dgs', 'rgb', 'rgbS', 'crtSz', 'pixel', 'pixS', 'pixSize', 'fb', 'fbS', 'fbK', 'vDrop', 'payNeg', 'shakeZ', 'wobZ', 'time', 'beat'];
+    const last = {};                                  // the uniforms' current values (a uniform keeps its value until it's set again)
+    const u = {}; [...NAMES, 'glA', 'rgA', 'cdA', 'res', 'shake', 'tex', 'prev', 'blit', 'fbInit', 'palBg', 'plut', 'palN'].forEach(k => u[k] = gl.getUniformLocation(prog, k));
+    gl.uniform1i(u.tex, 0); gl.uniform1i(u.prev, 1); gl.uniform1i(u.plut, 2);
+    gl.viewport(0, 0, CW, CH);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false); gl.clearColor(0, 0, 0, 0);
+    // run(U, from, to, slot): the effects in U applied to canvas `from`, the result drawn into context `to`
+    // (slot 0 = the output, 1–4 = layers; each keeps its own Feedback history)
+    // Luma transition: a second small program in the same context
+    const lu = { a: gl.getUniformLocation(lp, 'a'), b: gl.getUniformLocation(lp, 'b'), c: gl.getUniformLocation(lp, 'c'), e: gl.getUniformLocation(lp, 'e'), inv: gl.getUniformLocation(lp, 'inv'), sw: gl.getUniformLocation(lp, 'sw') }, lpLoc = gl.getAttribLocation(lp, 'p'), texB = mkTex(), texC = mkTex();
+    // Luma pacing: the edge sweeps through the old scene's brightness *ranks*, not raw brightness, so a dark or a bright
+    // scene takes the same time (equal areas change per moment). The ranks come from a 64×36 copy, every 4th frame.
+    const rk = document.createElement('canvas'); rk.width = 64; rk.height = 36; const rx = rk.getContext('2d', { willReadFrequently: true });
+    const rank = new Uint8Array(256); let rankN = 0;
+    const ranks = A => {
+      rx.drawImage(A, 0, 0, 64, 36); const d = rx.getImageData(0, 0, 64, 36).data, hist = new Uint32Array(256), n = d.length / 4;
+      for (let i = 0; i < d.length; i += 4) hist[Math.round(d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114)]++;
+      let below = 0; for (let v = 0; v < 256; v++){ rank[v] = Math.round(255 * (below + hist[v] / 2) / n); below += hist[v]; }   // mid-rank: a flat scene sits at 0.5
+      for (let v = 1; v < 256; v++) if (!hist[v] && rank[v] < rank[v - 1]) rank[v] = rank[v - 1];
+    };
+    // Transitions that used to be drawn bit by bit on the CPU (hundreds of drawImage / fillRect calls, or a loop over
+    // every block): Dissolve, Glitch › Scramble and TV › VHS, as one shader pass over the two scenes.
+    // mode 1 dissolve · 2 scramble (no transition uses it since 0.84; kept for now) · 3 vhs. Pixels: P (y down, like the canvases).
     const tu = {}; ['a', 'b', 'res', 'mode', 'e', 'bs', 'seed', 'stp', 't', 'fr', 'k', 'nz', 'mixB', 'pr', 'useB', 'bands'].forEach(n => tu[n] = gl.getUniformLocation(tp, n));
     const tpLoc = gl.getAttribLocation(tp, 'p');
+    // palette tables: one per palette and Fit range in use (a Fit range that is still settling makes a new one each frame: the oldest is drawn over)
+    const pu = {}; ['pal', 'palOk', 'palN', 'palLo', 'palHi', 'palYlo', 'palYhi', 'palLum'].forEach(k => pu[k] = gl.getUniformLocation(pl, k)); const plLoc = gl.getAttribLocation(pl, 'p');
+    const luts = new Map(); let lutN = 0;
+    const lutFor = U => { const P = FX_PALS[U.palI] || FX_PALS[0], v = ['palLo', 'palHi', 'palYlo', 'palYhi', 'palLum'].map(k => U[k] || 0), key = (U.palI || 0) + ',' + v.join();
+      let T = luts.get(key); if (T){ T.n = ++lutN; return T.t; }
+      if (luts.size >= 8){ const [k0, old] = [...luts].reduce((a, b) => a[1].n < b[1].n ? a : b); luts.delete(k0); T = old; }
+      else { const t = mkTex(); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 512, 1024, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); T = { t, f }; }
+      T.n = ++lutN; luts.set(key, T);
+      gl.useProgram(pl); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.enableVertexAttribArray(plLoc); gl.vertexAttribPointer(plLoc, 2, gl.FLOAT, false, 0, 0);
+      gl.uniform3fv(pu.pal, P.f); gl.uniform3fv(pu.palOk, P.ok); gl.uniform1f(pu.palN, P.c.length); ['palLo', 'palHi', 'palYlo', 'palYhi', 'palLum'].forEach((k, i) => gl.uniform1f(pu[k], v[i]));
+      gl.bindFramebuffer(gl.FRAMEBUFFER, T.f); gl.viewport(0, 0, 512, 1024); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, CW, CH); gl.useProgram(prog); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      gl.bindTexture(gl.TEXTURE_2D, src);   // (making a table bound it in the picture's place)
+      return T.t; };
     return { luma(A, B, e, T = {}){
-      if (lost || gl.isContextLost()){                 // no GPU: a plain crossfade
-        mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.globalCompositeOperation = 'source-over';
-        mctx.globalAlpha = 1; mctx.drawImage(A, 0, 0); mctx.globalAlpha = Math.min(1, Math.max(0, e)); mctx.drawImage(B, 0, 0); mctx.globalAlpha = 1; return;
-      }
+      if (lost || gl.isContextLost()) return soft.luma(A, B, e);
       gl.useProgram(lp); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.enableVertexAttribArray(lpLoc); gl.vertexAttribPointer(lpLoc, 2, gl.FLOAT, false, 0, 0);
       gl.uniform1i(lu.a, 0); gl.uniform1i(lu.b, 1); gl.uniform1i(lu.c, 2); gl.uniform1f(lu.e, e); gl.uniform1f(lu.inv, T.inv === 'dark' ? 1 : 0); gl.uniform1f(lu.sw, T.soft ? 0.7 : 0.25);   // Soft: a wider edge
       gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, texC);
@@ -870,18 +904,16 @@ ${FX_GLSL}
       mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.globalAlpha = 1; mctx.globalCompositeOperation = 'source-over'; mctx.drawImage(cv, 0, 0);
       return true;
     }, run(U, from = master, to = mctx, slot = 0){
-      if (lost || gl.isContextLost()){                 // no GPU: the picture as it is
-        if (to.canvas !== from){ to.setTransform(1, 0, 0, 1, 0, 0); to.globalAlpha = 1; to.globalCompositeOperation = 'source-over';
-          if (slot === 0){ to.fillStyle = '#000'; to.fillRect(0, 0, CW, CH); } else to.clearRect(0, 0, CW, CH); to.drawImage(from, 0, 0); }
-        return;
-      }
+      if (lost || gl.isContextLost()) return soft.run(U, from, to, slot);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, from);
       gl.uniform2f(u.res, CW, CH);
-      if (U.palFit){ U = { ...U, ...fitRangeOf(from, slot) }; } else if (last.palHi) U = { ...U, palLo: 0, palHi: 0 };   // Colour › Palette › Fit range (0.99.21)
+      if (U.palFit){ U = { ...U, ...fitRangeOf(from, slot) }; } else if (last.palHi) U = { ...U, palLo: 0, palHi: 0 };
+      if (U.colr > 0.001){ const t = lutFor(U); gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, t); gl.activeTexture(gl.TEXTURE0); }   // the palette's table (Luma uses the same unit: bound each time)   // Colour › Palette › Fit range (0.99.21)
       for (const k of NAMES){ const v = (U[k] || 0) * (PX_NAMES.has(k) ? RS : 1); if (last[k] !== v){ last[k] = v; gl.uniform1f(u[k], v); } }
       for (const k of ['glA', 'rgA', 'cdA']){ const v = U[k] || ONES12, sg = v.join(); if (last[k] !== sg){ last[k] = sg; gl.uniform1fv(u[k], v); } }   // sizes in canvas pixels → real pixels; only what changed is sent
       if (String(U.shake) !== last.shake){ last.shake = String(U.shake); gl.uniform3fv(u.shake, U.shake); }
-      if (U.palI !== last.palI){ last.palI = U.palI; const P = FX_PALS[U.palI] || FX_PALS[0]; gl.uniform3fv(u.pal, P.f); gl.uniform3fv(u.palOk, P.ok); gl.uniform1f(u.palN, P.c.length); }   // the 64-colour palette only when it changes
+      if (U.palI !== last.palI){ last.palI = U.palI; const P = FX_PALS[U.palI] || FX_PALS[0]; let bg = 0, by = -1; for (let i = 0; i < P.c.length; i++){ const y = P.f[i * 3] * 0.299 + P.f[i * 3 + 1] * 0.587 + P.f[i * 3 + 2] * 0.114; if (y > by){ by = y; bg = i; } }   // (the Dot Matrix backing: the lightest colour)
+        gl.uniform3f(u.palBg, P.f[bg * 3], P.f[bg * 3 + 1], P.f[bg * 3 + 2]); gl.uniform1f(u.palN, P.c.length); }   // the 64-colour palette only when it changes
       gl.uniform1f(u.blit, 0);
       const fbOn = U.fb > 0.001, trail = fbOn || (U.rgb > 0.001 && (U.rgbS >> FXS.rgb.phos & 1)) || (U.glitch > 0.001 && (U.glS >> FXS.glitch.corrupt & 1 || U.glS >> FXS.glitch.keyfr & 1)) || (Math.abs(U.palDot || 0) > 0.5 && U.colr > 0.001);   // only Feedback, Phosphor, Glitch › Corrupt / Keyframe and the Game Boy LCD read the previous frame
       if (!trail){                                   // straight onto the canvas: no render target, no second pass
@@ -907,6 +939,16 @@ ${FX_GLSL}
       cv.width = CW; cv.height = CH; gl.viewport(0, 0, CW, CH);
       slots.forEach(S => { if (!S) return; S.rt.forEach(r => { gl.bindTexture(gl.TEXTURE_2D, r.t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, CW, CH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null); }); S.fbWas = false; S.stale = true; });
     } };
+    };
+    let impl = null, dead = false;
+    const ok = () => { if (impl) return true; if (dead || lost || gl.isContextLost()) return false;
+      if (par && !progs.every(P => gl.getProgramParameter(P, par.COMPLETION_STATUS_KHR))) return false;
+      try { impl = build(); api.ready = true; redraw.all = true; } catch (e){ dead = true; console.warn('screen effects unavailable:', e.message); if (post === api) post = null; }
+      return !!impl; };
+    const api = { ready: false, luma(...a){ return (ok() ? impl : soft).luma(...a); }, trans(...a){ return (ok() ? impl : soft).trans(...a); }, run(...a){ return (ok() ? impl : soft).run(...a); },
+      swap(a, b){ if (impl) impl.swap(a, b); }, idle(s){ if (impl) impl.idle(s); }, resize(){ if (impl) impl.resize(); else { cv.width = CW; cv.height = CH; } } };
+    const poll = setInterval(() => { if (ok() || dead || lost) clearInterval(poll); }, 50);   // (a still picture calls nothing: this is what notices the shaders are ready, and redraws)
+    return api;
   } catch (e) { console.warn('screen effects unavailable:', e.message); return null; }
 }
 const NOFX = { out: null, layers: [null, null, null, null], any: false };

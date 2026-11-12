@@ -4,6 +4,12 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
+## 0.99.36 — 2026/11/11
+
+- Opening VJif no longer freezes Chrome ("not responding" for a minute or more) when Chrome has no saved copy of the effects shader: after a new VJif version, a Chrome or graphics driver update, or a cleared cache. Measured on FYR's machine with the shader cache off: 84 s for that one shader, the page blocked for all of it. Two changes:
+  - The palette match (Colour › Palette) is no longer written out in the shader at each of the 17 places the picture's look is applied (four loops over 64 colours each time, which the graphics driver unrolls). The two colours now come from a table drawn once per palette and Fit range by a small program of its own. Palette pictures can differ by a pixel here and there at the border between two colours (the table has 64 steps per channel); the GIF's own Palette (GIF › Colour) is unchanged.
+  - The shaders compile in the background where the browser allows (`KHR_parallel_shader_compile`): the page opens and plays straight away, effects show the picture as it is and Luma / Dissolve / VHS transitions use their plain versions until the shaders are ready, then everything redraws. The monitor's Start line shows how long that took ("in the background").
+
 ## 0.99.35 — 2026/11/11
 
 - Output ▾ (next to Output): zoom (10–100 %) and X / Y position of the picture in the full-screen output, live from the main window, kept between sessions. The rest of the screen stays black, so a smaller screen or surface than the projector's can show the whole picture. Reset view = 100 %, centred. Windowed output is unchanged.
