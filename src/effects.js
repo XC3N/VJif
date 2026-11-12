@@ -428,9 +428,13 @@ function makePost(){
     // whenever Chrome had no saved copy of it, and asking for its status straight away froze the whole page for that time. Now nothing asks until the
     // browser says it's done; until then `soft` stands in (as with a lost context). Without the extension: built at the first use, as before.
     const par = gl.getExtension('KHR_parallel_shader_compile'), t0 = performance.now(), progs = [];
-    const mk = (name, fs) => { const P = gl.createProgram(); P.sh = [[gl.VERTEX_SHADER, `attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x + 1.0, 1.0 - p.y) * 0.5; gl_Position = vec4(p, 0.0, 1.0); }`], [gl.FRAGMENT_SHADER, fs]].map(([t, s]) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); gl.attachShader(P, o); return o; });
-      gl.linkProgram(P); P.nm = name; progs.push(P); return P; };
-    const prog = mk('effects', `precision highp float;
+    const mk = (name, fs, core = true) => { const P = gl.createProgram(); P.sh = [[gl.VERTEX_SHADER, `attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x + 1.0, 1.0 - p.y) * 0.5; gl_Position = vec4(p, 0.0, 1.0); }`], [gl.FRAGMENT_SHADER, fs]].map(([t, s]) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); gl.attachShader(P, o); return o; });
+      gl.linkProgram(P); P.nm = name; if (core) progs.push(P); return P; };
+    // 0.99.38: the effects shader comes in variants. Direct3D's compile time grows much faster than the shader: whole, 20 s on an Iris Xe; without the CRT, Glitch
+    // and Codec parts, 1.2 s. So the base program (everything else) is built first, and the variants that add those parts (#ifdef FX_RGB / FX_GLITCH / FX_CODEC
+    // round their blocks in main) follow one at a time in the background, or at once when a frame asks for one. A frame uses the readiest program that
+    // has no more than it needs: an effect whose variant isn't ready yet is left out until it is.
+    const FXSRC = `precision highp float;
 ${FX_GLSL}
       uniform sampler2D tex, prev; uniform vec2 res; uniform float blit, fbInit, time, beat;
       uniform float colr, colrS, hue, strobe, strobeS, rays, poster, posterS, zoom, bulge, wob, wobS, wobPh, mirror, mirS, mirN, mirZ, mirK, mirA, keepA, duoI, palD, palLo, palHi, palYlo, palYhi, palP, palDot, palLum,
@@ -544,20 +548,30 @@ ${FX_GLSL}
         vec2 p = uv, a = A();
         float split = rgb > 0.001 ? rgb * max(max(HAS(rgbS, S_rgb_split) ? 0.025 * rgA[int(S_rgb_split)] : 0.0, HAS(rgbS, S_rgb_vhs) ? 0.006 * rgA[int(S_rgb_vhs)] : 0.0), max(HAS(rgbS, S_rgb_scan) ? 0.0015 * rgA[int(S_rgb_scan)] : 0.0, HAS(rgbS, S_rgb_phos) ? 0.002 * rgA[int(S_rgb_phos)] : 0.0)) : 0.0;   // stacked styles: the widest colour split
         float payU = 1.0;                              // pay-TV: where this pixel falls across the line (0 = the blanking bar's edge)
-        if (rgb > 0.001 && HAS(rgbS, S_rgb_crypt)){ float rq = min(1.0, rgb * rgA[int(S_rgb_crypt)]);              // crypt: lines shuffled within blocks of 32 (Nagravision Syster), then each cut at a random point and its halves swapped (Videocrypt)
+        
+#ifdef FX_RGB
+if (rgb > 0.001 && HAS(rgbS, S_rgb_crypt)){ float rq = min(1.0, rgb * rgA[int(S_rgb_crypt)]);              // crypt: lines shuffled within blocks of 32 (Nagravision Syster), then each cut at a random point and its halves swapped (Videocrypt)
           float lh = max(crtSz, 1.0) / res.y, line = floor(p.y / lh), key = floor(time * 4.0);
           if (h1(line * 0.37 + key * 1.91) < rq){
             float blk = floor(line / 32.0), idx = mod(line, 32.0), k = 1.0 + 2.0 * floor(h1(blk + key * 1.3) * 16.0), off = floor(h1(blk * 2.1 + key) * 32.0);
             p.y = min((blk * 32.0 + mod(idx * k + off, 32.0) + 0.5) * lh, 1.0 - lh * 0.5);   // odd k: a different line for every line of the block
             p.x = fract(p.x + h1(line * 1.7 + key * 3.1)); } }
-        if (rgb > 0.001 && HAS(rgbS, S_rgb_paytv)){ float rq = min(1.0, rgb * rgA[int(S_rgb_paytv)]); // pay-TV, cable-box style (sync suppressed): no horizontal sync, so every line starts late by an amount
+#endif
+
+        
+#ifdef FX_RGB
+if (rgb > 0.001 && HAS(rgbS, S_rgb_paytv)){ float rq = min(1.0, rgb * rgA[int(S_rgb_paytv)]); // pay-TV, cable-box style (sync suppressed): no horizontal sync, so every line starts late by an amount
           float y = p.y, t = time;                    // that wobbles down the picture; the picture wraps, the blanking bar shows inside it and bends
           float off = rq * (0.24 + 0.15 * sin(y * 3.2 + t * 0.9) + 0.035 * sin(y * 9.0 - t * 1.7) + 0.005 * sin(y * 61.0 + t * 11.0));
           p.y = fract(p.y + fract(t * 0.031) * rq * 0.6);   // and the vertical hold drifts
           payU = fract(p.x + off); p.x = payU; }
+#endif
+
         if (dgs > 0.001){ float gq = dgs; // degauss: the picture ripples
           p += vec2(sin(p.y * 18.0 + time * 35.0), cos(p.x * 14.0 + time * 29.0)) * 0.006 * gq; split += 0.008 * gq; }
-        if (rgb > 0.001 && HAS(rgbS, S_rgb_vhs)){ float rq = min(1.0, rgb * rgA[int(S_rgb_vhs)]); // VHS tracking: a gentle sway and a torn band rolling down; with Wear: more of the tape's faults
+        
+#ifdef FX_RGB
+if (rgb > 0.001 && HAS(rgbS, S_rgb_vhs)){ float rq = min(1.0, rgb * rgA[int(S_rgb_vhs)]); // VHS tracking: a gentle sway and a torn band rolling down; with Wear: more of the tape's faults
           float fr = floor(time * 30.0), ln = floor(p.y * res.y / 2.0), wg = smoothstep(0.04, 0.3, rq), w = rq * wg;   // Amount is the wear (0.99.11: at its lowest only the blur: the faults fade in from 4 %)
           p.x += sin(p.y * 30.0 + time * 6.0) * 0.0015 * rq * wg;
           float ty = fract(time * 0.23); if (abs(p.y - ty) < 0.025) p.x += (h1(floor(p.y * 200.0) + fr) - 0.5) * 0.03 * rq * wg;
@@ -566,7 +580,11 @@ ${FX_GLSL}
           if (p.y > 0.955) p.x += (0.015 + h1(ln * 0.9 + fr) * 0.03) * w;                         // head-switching noise along the bottom
           p.y += step(0.94, h1(floor(time * 6.0) + 0.3)) * 0.006 * w;                               // now and then the picture hops
         }
-        if (glitch > 0.001){
+#endif
+
+        
+#ifdef FX_GLITCH
+if (glitch > 0.001){
           if (HAS(glS, S_glitch_slices)){ float gq = min(1.0, glitch * glA[int(S_glitch_slices)]); float nb = res.y / max(glSz, 2.0), band = floor(p.y * nb + h1(gseed) * nb), g = 0.0;
             if (h1(band + gseed) < gq * 0.55) g = (h1(band * 1.7 + gseed) - 0.5) * 0.25 * gq;
             split += abs(g) * 0.3 + gq * 0.004; p.x += g; }
@@ -574,8 +592,12 @@ ${FX_GLSL}
             if (h2(cell + gseed) < gq * 0.45){ p += (vec2(h2(cell * 1.3 + gseed), h2(cell * 2.1 + gseed)) - 0.5) * 0.15 * gq; split += 0.01 * gq; } }
           if (HAS(glS, S_glitch_melt)){ float gq = min(1.0, glitch * glA[int(S_glitch_melt)]); float col = floor(p.x * res.x / max(glSz * 0.5, 2.0)); p.y = max(0.0, p.y - h1(col * 3.7) * 0.35 * gq * smoothstep(0.0, 1.0, p.y + 0.3)); }
         }
+#endif
+
         vec4 c4 = samp(geo(p), split);
-        if (glitch > 0.001 && HAS(glS, S_glitch_sort)){ float gq = min(1.0, glitch * glA[int(S_glitch_sort)]);   // Sort (0.99.32): pixel sorting: each column cut in runs (Size: the longest), a run's pixels put in order of brightness, dark at the top
+        
+#ifdef FX_GLITCH
+if (glitch > 0.001 && HAS(glS, S_glitch_sort)){ float gq = min(1.0, glitch * glA[int(S_glitch_sort)]);   // Sort (0.99.32): pixel sorting: each column cut in runs (Size: the longest), a run's pixels put in order of brightness, dark at the top
           vec3 L3 = vec3(0.299, 0.587, 0.114); float col = floor(p.x * res.x / max(1.0, floor(res.y / 360.0))), sl = max(glSz, 8.0) * (0.35 + 0.65 * h1(col * 1.37 + gseed)) / res.y, off = h1(col * 2.9 + gseed) * sl;
           float sy = (p.y + off) / sl, seg = floor(sy);
           if (h1(seg * 1.7 + col * 0.13 + gseed) < gq * 1.25){ vec4 S[16]; float Y[16];   // (1 in 4 runs left as they are at full Amount)
@@ -583,6 +605,8 @@ ${FX_GLSL}
             float want = floor(fract(sy) * 16.0); vec4 o = c4;
             for (int i = 0; i < 16; i++){ float n = 0.0; for (int j = 0; j < 16; j++) n += Y[j] < Y[i] || (Y[j] == Y[i] && j < i) ? 1.0 : 0.0; if (n == want) o = S[i]; }   // the sample whose rank is this pixel's place in the run
             c4 = o; } }
+#endif
+
         if (mirror > 0.001) c4 = mix(c4, samp(geo(fold(p)), split), mirror);
         vec3 c = c4.rgb; float al = c4.a;
         if (poster > 0.001){
@@ -598,16 +622,26 @@ ${FX_GLSL}
           vec2 q = geo(p), o = vec2(split, 0.0);                  // after the look, so a palette / mono picture splits into its own colours
           vec3 lr = look(raw(q + o)), lb = look(raw(q - o)); c = look(c); c = vec3(lr.r, c.g, lb.b);   // (instead of the split's fringes being snapped back)
         } else c = look(c);
-        if (rgb > 0.001 && HAS(rgbS, S_rgb_scan)){ float rq = min(1.0, rgb * rgA[int(S_rgb_scan)]); // scanlines + aperture grille
+        
+#ifdef FX_RGB
+if (rgb > 0.001 && HAS(rgbS, S_rgb_scan)){ float rq = min(1.0, rgb * rgA[int(S_rgb_scan)]); // scanlines + aperture grille
           float ln = 0.5 + 0.5 * cos(gl_FragCoord.y * 6.2831853 / max(crtSz, 2.0));   // a dark line every Size px
           float col = mod(floor(gl_FragCoord.x), 3.0); vec3 tri = vec3(col < 0.5 ? 1.0 : 0.7, col > 0.5 && col < 1.5 ? 1.0 : 0.7, col > 1.5 ? 1.0 : 0.7);
           c = c * mix(vec3(1.0), tri * (0.55 + 0.45 * ln), rq) * (1.0 + 0.25 * rq); }
-        if (rgb > 0.001 && HAS(rgbS, S_rgb_phos)){ float rq = min(1.0, rgb * rgA[int(S_rgb_phos)]); // phosphor: bright parts bloom and linger
+#endif
+
+        
+#ifdef FX_RGB
+if (rgb > 0.001 && HAS(rgbS, S_rgb_phos)){ float rq = min(1.0, rgb * rgA[int(S_rgb_phos)]); // phosphor: bright parts bloom and linger
           vec2 q = geo(p), t = vec2(5.0) / res; vec3 bl = vec3(0.0);
           for (int i = 0; i < 8; i++){ float an = float(i) * 0.785398; bl += raw(q + vec2(cos(an), sin(an)) * t * 1.6) + raw(q + vec2(cos(an), sin(an)) * t * 3.4); }
           bl = look(bl / 16.0); c += max(bl - 0.35, 0.0) * 1.6 * rq;
           vec4 pv = texture2D(prev, vec2(uv.x, 1.0 - uv.y)); c = max(c, pv.rgb * 0.82 * rq); }
-        if (rgb > 0.001 && HAS(rgbS, S_rgb_film)){ float rq = min(1.0, rgb * rgA[int(S_rgb_film)]);   // Film (0.99.32): grain in the mid-tones, the gate's flicker, a warm light leak drifting across, a vignette, now and then a scratch
+#endif
+
+        
+#ifdef FX_RGB
+if (rgb > 0.001 && HAS(rgbS, S_rgb_film)){ float rq = min(1.0, rgb * rgA[int(S_rgb_film)]);   // Film (0.99.32): grain in the mid-tones, the gate's flicker, a warm light leak drifting across, a vignette, now and then a scratch
           float fr = floor(time * 24.0), y = dot(c, vec3(0.299, 0.587, 0.114)); vec2 gp = floor(gl_FragCoord.xy / max(1.0, floor(res.y / 540.0)));
           c += (h2(gp + fr * 1.37) + h2(gp * 1.13 + fr * 2.71 + 0.5) - 1.0) * 0.2 * rq * (0.4 + 2.4 * y * (1.0 - y));
           c *= 1.0 + (h1(fr * 0.71) - 0.5) * 0.1 * rq;
@@ -615,8 +649,16 @@ ${FX_GLSL}
           c += vec3(1.0, 0.42, 0.12) * lk * 0.6 * rq;
           vec2 vg = uv - 0.5; c *= 1.0 - dot(vg, vg) * 1.1 * rq;
           if (h1(fr * 3.3) < 0.35 * rq){ float sx = h1(fr * 5.1); c = mix(c, c * 0.55 + 0.04, (1.0 - smoothstep(0.0, 1.5 / res.x, abs(uv.x - sx))) * 0.8); } }
-        if (rgb > 0.001 && HAS(rgbS, S_rgb_crypt)) c = mix(c, vec3(dot(c, vec3(0.299, 0.587, 0.114))) * 0.85 + 0.06, 0.45 * (rgb * rgA[int(S_rgb_crypt)]));   // crypt: colour lost, the black level lifted
-        if (rgb > 0.001 && HAS(rgbS, S_rgb_paytv)){ float rq = min(1.0, rgb * rgA[int(S_rgb_paytv)]); // pay-TV picture: a smeared echo, the colour decoded wrong (hue turned round, oversaturated), now and then a negative field
+#endif
+
+        
+#ifdef FX_RGB
+if (rgb > 0.001 && HAS(rgbS, S_rgb_crypt)) c = mix(c, vec3(dot(c, vec3(0.299, 0.587, 0.114))) * 0.85 + 0.06, 0.45 * (rgb * rgA[int(S_rgb_crypt)]));
+#endif
+   // crypt: colour lost, the black level lifted
+        
+#ifdef FX_RGB
+if (rgb > 0.001 && HAS(rgbS, S_rgb_paytv)){ float rq = min(1.0, rgb * rgA[int(S_rgb_paytv)]); // pay-TV picture: a smeared echo, the colour decoded wrong (hue turned round, oversaturated), now and then a negative field
           vec3 gh = look(raw(geo(vec2(fract(p.x - 0.022), p.y))));
           vec3 d = mix(c, gh, 0.38);
           d = clamp(hueRot(d, 3.14159), 0.0, 1.0); float l = dot(d, vec3(0.299, 0.587, 0.114)); d = clamp(mix(vec3(l), d, 1.7), 0.0, 1.0);
@@ -624,9 +666,13 @@ ${FX_GLSL}
           float e = payU / 0.11;                      // the blanking bar: a bright sync edge, dark purple, a pale edge where the picture starts
           if (e < 1.0) d = e < 0.12 ? mix(vec3(0.95, 0.92, 1.0), vec3(0.55, 0.35, 0.75), e / 0.12) : e > 0.88 ? mix(vec3(0.16, 0.05, 0.24), vec3(0.75, 0.62, 0.95), (e - 0.88) / 0.12) : mix(vec3(0.30, 0.12, 0.42), vec3(0.14, 0.04, 0.22), (e - 0.12) / 0.76);
           c = mix(c, d, rq); }
+#endif
+
         if (dgs > 0.001){ float gq = dgs; // degauss: rainbow blotches swirling out
           float r = length((uv - 0.5) * a); c = mix(c, clamp(hueRot(c, sin(r * 12.0 - time * 18.0 + sin(uv.x * 7.0) * 2.0) * 3.0), 0.0, 1.0), 0.75 * gq); }
-        if (rgb > 0.001 && HAS(rgbS, S_rgb_vhs)){ float rq = min(1.0, rgb * rgA[int(S_rgb_vhs)]); // VHS picture: washed colour, scanlines, noise; with Wear: colour bleeding right, dropouts
+        
+#ifdef FX_RGB
+if (rgb > 0.001 && HAS(rgbS, S_rgb_vhs)){ float rq = min(1.0, rgb * rgA[int(S_rgb_vhs)]); // VHS picture: washed colour, scanlines, noise; with Wear: colour bleeding right, dropouts
           float w = rq * smoothstep(0.04, 0.3, rq), fr = floor(time * 30.0), ln = floor(uv.y * res.y / 2.0);
           if (rq > 0.001){                           // tape keeps colour at a fraction of the picture's sharpness: the colour smears to the right of the shapes
             vec2 q = geo(p), px1 = vec2((1.5 + 2.0 * rq) / res.x, 0.0);         // softer as the tape wears
@@ -660,7 +706,11 @@ ${FX_GLSL}
           c *= 1.0 - 0.28 * w * step(0.5, fract(gl_FragCoord.y / 3.0));
           c += (h2(gl_FragCoord.xy + floor(time * 60.0)) - 0.5) * 0.14 * w;
         }
-        if (glitch > 0.001 && HAS(glS, S_glitch_keyfr)){ float gq = min(1.0, glitch * glA[int(S_glitch_keyfr)]);   // keyframe lost: the picture as it was (the last frame out) is moved along the live picture's motion,
+#endif
+
+        
+#ifdef FX_GLITCH
+if (glitch > 0.001 && HAS(glS, S_glitch_keyfr)){ float gq = min(1.0, glitch * glA[int(S_glitch_keyfr)]);   // keyframe lost: the picture as it was (the last frame out) is moved along the live picture's motion,
           // one motion vector per block, found by comparing the two around the block's centre (one step of optical flow): the old picture takes the new one's movement and smears
           float bs = max(glSz * 0.5, 4.0); vec2 cell = floor(uv * res / bs), cc = (cell + 0.5) * bs / res, e1 = vec2(bs / res.x, 0.0), e2 = vec2(0.0, bs / res.y); vec3 L3 = vec3(0.299, 0.587, 0.114);
           float pl = dot(texture2D(prev, vec2(cc.x, 1.0 - cc.y)).rgb, L3), cl = dot(look(samp(geo(cc), 0.0).rgb), L3);
@@ -670,7 +720,11 @@ ${FX_GLSL}
           float fresh = step(1.0 - 0.1 * (1.15 - gq), h2(cell + gseed));   // each Rate a few blocks catch up with the live picture
           c = mix(c, pv.rgb, has * (1.0 - fresh)); al = mix(al, pv.a, has * (1.0 - fresh));
         }
-        if (glitch > 0.001 && HAS(glS, S_glitch_corrupt)){ float gq = min(1.0, glitch * glA[int(S_glitch_corrupt)]);   // corrupt (a damaged video file), on a grid of blocks re-keyed every Rate:
+#endif
+
+        
+#ifdef FX_GLITCH
+if (glitch > 0.001 && HAS(glS, S_glitch_corrupt)){ float gq = min(1.0, glitch * glA[int(S_glitch_corrupt)]);   // corrupt (a damaged video file), on a grid of blocks re-keyed every Rate:
           float bs = max(glSz * 0.5, 4.0); vec2 px = uv * res, cell = floor(px / bs), f = fract(px / bs);
           vec2 run = vec2(floor(cell.x / 6.0 + h1(floor(cell.y / 2.0) * 3.1 + gseed) * 6.0), floor(cell.y / 2.0));   // damage comes in runs along rows (two blocks tall), as a broken file decodes
           float q = h2(run + gseed), r = h2(run * 1.7 + gseed + 3.1);
@@ -697,7 +751,11 @@ ${FX_GLSL}
             c = vec3(y + 1.403 * v2, y - 0.344 * u2 - 0.714 * v2, y + 1.770 * u2); al = max(al, samp(geo(ctr), 0.0).a);
           }
         }
-        if (codec > 0.001 && HAS(cdS, S_codec_crunch)){ float gq = min(1.0, codec * cdA[int(S_codec_crunch)]);   // crunch (a starved bit rate): per block, the detail in a few luma steps around the block's mean, the colour from its centre only
+#endif
+
+        
+#ifdef FX_CODEC
+if (codec > 0.001 && HAS(cdS, S_codec_crunch)){ float gq = min(1.0, codec * cdA[int(S_codec_crunch)]);   // crunch (a starved bit rate): per block, the detail in a few luma steps around the block's mean, the colour from its centre only
           float bs = max(cdSz, 3.0); vec2 cell = floor(uv * res / bs), cc = (cell + 0.5) * bs / res; vec3 L3 = vec3(0.299, 0.587, 0.114);
           vec3 b = look(samp(geo(cc), 0.0).rgb); float ya = dot(b, L3), y = dot(c, L3), q = mix(0.03, 0.16, gq);
           y = ya + floor((y - ya) / q + 0.5) * q;      // the detail stays, in a few steps (unlike Pixel, where a block is one flat colour)
@@ -705,24 +763,38 @@ ${FX_GLSL}
           float u2 = (b2.b - y2) * 0.565, v2 = (b2.r - y2) * 0.713;
           c = mix(c, vec3(y + 1.403 * v2, y - 0.344 * u2 - 0.714 * v2, y + 1.770 * u2), min(1.0, gq * 1.5));
         }
-        if (codec > 0.001 && HAS(cdS, S_codec_mblock)){ float gq = min(1.0, codec * cdA[int(S_codec_mblock)]);   // macroblock (0.99.5): each block keeps its average and one slope (a DC and the first AC terms), bilinear inside the block, so the grid shows at its edges
+#endif
+
+        
+#ifdef FX_CODEC
+if (codec > 0.001 && HAS(cdS, S_codec_mblock)){ float gq = min(1.0, codec * cdA[int(S_codec_mblock)]);   // macroblock (0.99.5): each block keeps its average and one slope (a DC and the first AC terms), bilinear inside the block, so the grid shows at its edges
           float bs = max(cdSz * 0.5, 4.0); vec2 px = uv * res, cell = floor(px / bs), f = fract(px / bs);
           vec3 s00 = samp(geo((cell + vec2(0.25, 0.25)) * bs / res), 0.0).rgb, s10 = samp(geo((cell + vec2(0.75, 0.25)) * bs / res), 0.0).rgb;
           vec3 s01 = samp(geo((cell + vec2(0.25, 0.75)) * bs / res), 0.0).rgb, s11 = samp(geo((cell + vec2(0.75, 0.75)) * bs / res), 0.0).rgb;
           vec2 w = clamp((f - 0.25) * 2.0, 0.0, 1.0); vec3 m = look(mix(mix(s00, s10, w.x), mix(s01, s11, w.x), w.y));   // (the colour effects once, on the mix: each call is a lot of shader)
           c = mix(c, m, min(1.0, gq * 1.4));
         }
-        if (codec > 0.001 && HAS(cdS, S_codec_chroma)){ float gq = min(1.0, codec * cdA[int(S_codec_chroma)]);   // chroma subsampling (0.99.5): the brightness stays sharp, the colour comes from blocks 2 px (4:2:0) up to Size, offset a little right as it bleeds
+#endif
+
+        
+#ifdef FX_CODEC
+if (codec > 0.001 && HAS(cdS, S_codec_chroma)){ float gq = min(1.0, codec * cdA[int(S_codec_chroma)]);   // chroma subsampling (0.99.5): the brightness stays sharp, the colour comes from blocks 2 px (4:2:0) up to Size, offset a little right as it bleeds
           float bs = max(2.0, floor(mix(2.0, max(cdSz * 0.5, 2.0), gq) + 0.5)); vec2 cc = (floor(uv * res / bs) + 0.5) * bs / res - vec2(bs * 0.35 / res.x, 0.0);
           vec3 b = look(samp(geo(cc), 0.0).rgb), L3 = vec3(0.299, 0.587, 0.114); float y = dot(c, L3), yb = dot(b, L3), u2 = (b.b - yb) * 0.565 * (1.0 + 0.25 * gq), v2 = (b.r - yb) * 0.713 * (1.0 + 0.25 * gq);
           c = vec3(y + 1.403 * v2, y - 0.344 * u2 - 0.714 * v2, y + 1.770 * u2);
         }
-        if (codec > 0.001 && HAS(cdS, S_codec_ring)){ float gq = min(1.0, codec * cdA[int(S_codec_ring)]);   // ringing (0.99.5): over-sharpened edges (halos on both sides) and mosquito noise near them, on the 8 px block grid
+#endif
+
+        
+#ifdef FX_CODEC
+if (codec > 0.001 && HAS(cdS, S_codec_ring)){ float gq = min(1.0, codec * cdA[int(S_codec_ring)]);   // ringing (0.99.5): over-sharpened edges (halos on both sides) and mosquito noise near them, on the 8 px block grid
           vec2 o = max(2.0, res.y / 360.0) / res; vec3 n = samp(geo(uv + vec2(o.x, 0.0)), 0.0).rgb + samp(geo(uv - vec2(o.x, 0.0)), 0.0).rgb + samp(geo(uv + vec2(0.0, o.y)), 0.0).rgb + samp(geo(uv - vec2(0.0, o.y)), 0.0).rgb;   // (the picture's own edges, before the colour effects: cheaper)
           vec3 lap = samp(geo(uv), 0.0).rgb - n * 0.25; float edge = clamp(length(lap) * 4.0, 0.0, 1.0);
           c += lap * 3.0 * gq;
           vec2 blk = floor(gl_FragCoord.xy / 8.0); c += (h2(floor(gl_FragCoord.xy / max(1.0, floor(res.y / 540.0))) + blk * 3.1) - 0.5) * 0.35 * gq * edge;
         }
+#endif
+
         c = mix(c, vec3(IS(strobeS, S_strobe_white) ? 1.0 : 0.0), strobe); if (IS(strobeS, S_strobe_white) && keepA < 0.5) al = mix(al, 1.0, strobe);
         if (rays > 0.001){ vec2 q = geo(p); vec3 acc = vec3(0.0); float w = 1.0, ws = 0.0, j0 = h2(gl_FragCoord.xy + fract(time) * 61.0);   // Strobe › Rays (0.99.32): light from the bright parts streams out from the middle (samples marched toward the centre)
           for (int i = 0; i < 24; i++){ vec2 sq = mix(q, vec2(0.5), (float(i) + j0) / 24.0 * 0.6); acc += max(raw(sq) - 0.6, 0.0) * w; ws += w; w *= 0.94; }   // (a random start per pixel: no steps in the rays)
@@ -744,7 +816,11 @@ ${FX_GLSL}
           c = mix(c, c / max(max(c.r, max(c.g, c.b)), 0.25) * (1.0 - smoothstep(-aa, aa, e)), clamp(pixel * 4.0, 0.0, 1.0)); }
         if (pixel > 0.001 && IS(pixS, S_pixel_ansi)){ float n = res.x / mix(1.0, pixSize, pixel); vec2 cell = vec2(n, n * res.y / res.x * 0.5); c = mix(c, ansi(c, fract(uv * cell)), clamp(pixel * 4.0, 0.0, 1.0)); }
         gl_FragColor = vec4(clamp(c, 0.0, 1.0), clamp(al, 0.0, 1.0));
-      }`);
+      }`;
+    const fx = [], FXG = [['FX_RGB', 'CRT'], ['FX_GLITCH', 'Glitch'], ['FX_CODEC', 'Codec']];   // by bits: 1 CRT, 2 Glitch, 4 Codec
+    const mkFx = bits => { const on = FXG.filter((_, i) => bits >> i & 1);
+      return fx[bits] = { P: mk('effects' + on.map(g => ' + ' + g[1]).join(''), FXSRC.replace('precision highp float;', 'precision highp float;' + on.map(g => '\n#define ' + g[0] + ' 1').join('') + '\n'), !bits), t0: performance.now(), ready: false, dead: false, u: {}, last: {}, loc: 0 }; };
+    mkFx(0);
     const lp = mk('layers', `precision mediump float; uniform sampler2D a, b, c; uniform float e, inv, sw; varying vec2 uv;
       void main(){ vec4 A = texture2D(a, uv), B = texture2D(b, uv); float l0 = dot(A.rgb, vec3(0.299, 0.587, 0.114)), t = e * (1.0 + sw);
         float l = texture2D(c, vec2((l0 * 255.0 + 0.5) / 256.0, 0.5)).a;   // brightness → its rank in this scene (0 = darkest, 1 = brightest)
@@ -821,10 +897,8 @@ ${FX_GLSL}
     const build = () => {
     for (const P of progs) if (!gl.getProgramParameter(P, gl.LINK_STATUS)) throw new Error(P.nm + ': ' + (gl.getProgramInfoLog(P) || '') + ' ' + P.sh.map(o => gl.getShaderInfoLog(o) || '').join(' '));
     bootT.link.push(['effects, layers, transitions, palette' + (par ? ' (in the background)' : ''), Math.round(performance.now() - t0)]);
-    gl.useProgram(prog);
     const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-    const loc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     const mkTex = () => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
       [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]].forEach(([k, v]) => gl.texParameteri(gl.TEXTURE_2D, k, v));
       return t; };
@@ -839,9 +913,23 @@ ${FX_GLSL}
     const PX_NAMES = new Set(['crtSz', 'pixSize', 'glSz', 'cdSz']);   // (palDot is worked out in real pixels: lcdDot)   // sizes given in canvas pixels
     const NAMES = ['colr', 'colrS', 'hue', 'strobe', 'strobeS', 'rays', 'poster', 'posterS', 'zoom', 'bulge', 'wob', 'wobS', 'wobPh', 'mirror', 'mirS', 'mirN', 'mirZ', 'mirK', 'mirA', 'keepA', 'duoI', 'palD', 'palLo', 'palHi', 'palYlo', 'palYhi', 'palP', 'palDot', 'palLum',
                    'glitch', 'glS', 'gseed', 'glSz', 'codec', 'cdS', 'cseed', 'cdSz', 'dgs', 'rgb', 'rgbS', 'crtSz', 'pixel', 'pixS', 'pixSize', 'fb', 'fbS', 'fbK', 'vDrop', 'payNeg', 'shakeZ', 'wobZ', 'time', 'beat'];
-    const last = {};                                  // the uniforms' current values (a uniform keeps its value until it's set again)
-    const u = {}; [...NAMES, 'glA', 'rgA', 'cdA', 'res', 'shake', 'tex', 'prev', 'blit', 'fbInit', 'palBg', 'plut', 'palN'].forEach(k => u[k] = gl.getUniformLocation(prog, k));
-    gl.uniform1i(u.tex, 0); gl.uniform1i(u.prev, 1); gl.uniform1i(u.plut, 2);
+    // each program has its own uniforms: `last` holds their current values (a uniform keeps its value until it's set again)
+    let cur = fx[0];
+    const use = R => { cur = R; gl.useProgram(R.P); gl.enableVertexAttribArray(R.loc); gl.vertexAttribPointer(R.loc, 2, gl.FLOAT, false, 0, 0); };
+    const fxReady = R => { if (R.ready || R.dead) return R.ready; if (par && !gl.getProgramParameter(R.P, par.COMPLETION_STATUS_KHR)) return false;
+      if (!gl.getProgramParameter(R.P, gl.LINK_STATUS)){ R.dead = true; console.warn('screen effects: ' + R.P.nm + ' unavailable: ' + (gl.getProgramInfoLog(R.P) || '')); return false; }
+      gl.useProgram(R.P); R.loc = gl.getAttribLocation(R.P, 'p'); [...NAMES, 'glA', 'rgA', 'cdA', 'res', 'shake', 'tex', 'prev', 'blit', 'fbInit', 'palBg', 'plut', 'palN'].forEach(k => R.u[k] = gl.getUniformLocation(R.P, k));
+      gl.uniform1i(R.u.tex, 0); gl.uniform1i(R.u.prev, 1); gl.uniform1i(R.u.plut, 2); R.ready = true;
+      if (R !== fx[0]){ bootT.link.push([R.P.nm, Math.round(performance.now() - R.t0)]); redraw.all = true; }
+      use(cur.ready ? cur : R); return true; };
+    fxReady(fx[0]);
+    // the program for a frame that needs `need`: its own when ready (asked for now if it wasn't yet), else the readiest one with nothing more than it needs
+    const fxFor = need => { const R = fx[need] || mkFx(need); if (fxReady(R)) return R;
+      let best = fx[0], bn = 0; for (let b = 1; b < 8; b++){ const n = (b & 1) + (b >> 1 & 1) + (b >> 2); if ((b & need) === b && fx[b] && fx[b].ready && n > bn){ best = fx[b]; bn = n; } }
+      return best; };
+    const warm = par ? [1, 2, 4, 3, 5, 6, 7] : [];   // built ahead, one at a time (without background compiling each would freeze the page: on demand only)
+    const tick = () => { let busy = false; fx.forEach(R => { if (R && !R.dead && !fxReady(R)) busy = true; });
+      while (!busy && warm.length){ const b = warm.shift(); if (!fx[b]){ mkFx(b); busy = true; } } };
     gl.viewport(0, 0, CW, CH);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false); gl.clearColor(0, 0, 0, 0);
     // run(U, from, to, slot): the effects in U applied to canvas `from`, the result drawn into context `to`
@@ -876,7 +964,7 @@ ${FX_GLSL}
       gl.useProgram(pl); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.enableVertexAttribArray(plLoc); gl.vertexAttribPointer(plLoc, 2, gl.FLOAT, false, 0, 0);
       gl.uniform3fv(pu.pal, P.f); gl.uniform3fv(pu.palOk, P.ok); gl.uniform1f(pu.palN, P.c.length); ['palLo', 'palHi', 'palYlo', 'palYhi', 'palLum'].forEach((k, i) => gl.uniform1f(pu[k], v[i]));
       gl.bindFramebuffer(gl.FRAMEBUFFER, T.f); gl.viewport(0, 0, 512, 1024); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, CW, CH); gl.useProgram(prog); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, CW, CH); use(cur);
       gl.bindTexture(gl.TEXTURE_2D, src);   // (making a table bound it in the picture's place)
       return T.t; };
     return { luma(A, B, e, T = {}){
@@ -888,7 +976,7 @@ ${FX_GLSL}
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, A);
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texB); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, B);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      gl.useProgram(prog); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      use(cur);
       mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.globalAlpha = 1; mctx.globalCompositeOperation = 'source-over'; mctx.drawImage(cv, 0, 0);
     }, trans(mode, A, B, P){                        // a GPU transition onto the master; false = no GPU (the CPU version draws it)
       if (lost || gl.isContextLost()) return false;
@@ -900,11 +988,12 @@ ${FX_GLSL}
       if (needA){ gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, A); }
       if (needB){ gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texB); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, B); }
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      gl.useProgram(prog); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0); gl.activeTexture(gl.TEXTURE0);
+      use(cur); gl.activeTexture(gl.TEXTURE0);
       mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.globalAlpha = 1; mctx.globalCompositeOperation = 'source-over'; mctx.drawImage(cv, 0, 0);
       return true;
     }, run(U, from = master, to = mctx, slot = 0){
       if (lost || gl.isContextLost()) return soft.run(U, from, to, slot);
+      const R = fxFor((U.rgb > 0.001 ? 1 : 0) | (U.glitch > 0.001 ? 2 : 0) | (U.codec > 0.001 ? 4 : 0)), u = R.u, last = R.last; if (R !== cur) use(R);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, from);
       gl.uniform2f(u.res, CW, CH);
       if (U.palFit){ U = { ...U, ...fitRangeOf(from, slot) }; } else if (last.palHi) U = { ...U, palLo: 0, palHi: 0 };
@@ -935,7 +1024,7 @@ ${FX_GLSL}
       if (slot === 0){ to.fillStyle = '#000'; to.fillRect(0, 0, CW, CH); } else to.clearRect(0, 0, CW, CH);   // what moved away is black / see-through
       to.drawImage(cv, 0, 0);
     }, swap(a, b){ const t = slots[a]; slots[a] = slots[b]; slots[b] = t; }, idle(slot){ const S = slots[slot]; if (S){ S.fbWas = false; S.stale = true; } },   // nothing on it: the trail starts over next time
-    resize(){                                        // new canvas format: the render targets follow (feedback history starts over)
+    tick, resize(){                                        // new canvas format: the render targets follow (feedback history starts over)
       cv.width = CW; cv.height = CH; gl.viewport(0, 0, CW, CH);
       slots.forEach(S => { if (!S) return; S.rt.forEach(r => { gl.bindTexture(gl.TEXTURE_2D, r.t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, CW, CH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null); }); S.fbWas = false; S.stale = true; });
     } };
@@ -947,7 +1036,7 @@ ${FX_GLSL}
       return !!impl; };
     const api = { ready: false, luma(...a){ return (ok() ? impl : soft).luma(...a); }, trans(...a){ return (ok() ? impl : soft).trans(...a); }, run(...a){ return (ok() ? impl : soft).run(...a); },
       swap(a, b){ if (impl) impl.swap(a, b); }, idle(s){ if (impl) impl.idle(s); }, resize(){ if (impl) impl.resize(); else { cv.width = CW; cv.height = CH; } } };
-    const poll = setInterval(() => { if (ok() || dead || lost) clearInterval(poll); }, 50);   // (a still picture calls nothing: this is what notices the shaders are ready, and redraws)
+    const poll = setInterval(() => { if (dead || lost) clearInterval(poll); else if (ok()) impl.tick(); }, 100);   // (a still picture calls nothing: this is what notices a program is ready and redraws, and builds the variants ahead)
     return api;
   } catch (e) { console.warn('screen effects unavailable:', e.message); return null; }
 }
