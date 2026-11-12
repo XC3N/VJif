@@ -24,7 +24,7 @@
 
 // ---------- constants ----------
 // canvas size: set by the format (landscape for screens and projectors, vertical / square / 4:5 for social video)
-const APP_VERSION = '0.99.35';   // bump with each release and add it to CHANGELOG.md
+const APP_VERSION = '0.99.36';   // bump with each release and add it to CHANGELOG.md
 let W = 1920, H = 1080;
 // Render size (Settings › Interface): everything is laid out in W×H "canvas pixels" (placement, sizes, guides), but drawn
 // into canvases of CW×CH real pixels, RS of that (1, 2/3 or 1/2). Smaller = fewer pixels to draw, copy and run effects on,
@@ -127,7 +127,9 @@ function fitCol(R, G, B, lo, hi, ylo, yhi, lum){
   const k = 1 + 1.5 * Math.pow(Math.min(1, Math.max(0, 1 - C / 0.6)), 1.5); d = d.map(v => v * k);   // vibrance: muted colours gain the most
   let q = 1; for (let i = 0; i < 3; i++){ if (d[i] > 1e-6) q = Math.min(q, (1 - y) / d[i]); else if (d[i] < -1e-6) q = Math.min(q, -y / d[i]); }   // past the screen's colours: towards the grey of the same brightness, just enough to fit
   q = Math.max(0, q); return d.map(v => Math.min(1, Math.max(0, y + v * q))); }
-const PALSNAP_GLSL = `vec3 fitY(vec3 c, float lo, float hi, float ylo, float yhi){ float y = dot(c, vec3(0.299, 0.587, 0.114)), y2 = mix(ylo, yhi, clamp((y - lo) / (hi - lo), 0.0, 1.0));
+// The palette pick in four pieces (0.99.36): the screen-effects shader looks the two colours up in a table (PALFIND runs once per table cell, in its own small
+// program) instead of carrying the search loops at each of its 17 look() calls, which took Direct3D over a minute to compile. The GIF pass keeps the whole pick.
+const PALFIT_GLSL = `vec3 fitY(vec3 c, float lo, float hi, float ylo, float yhi){ float y = dot(c, vec3(0.299, 0.587, 0.114)), y2 = mix(ylo, yhi, clamp((y - lo) / (hi - lo), 0.0, 1.0));
   if (y < 0.001) return vec3(y2); c *= y2 / y; float m = max(c.r, max(c.g, c.b));
   if (m > 1.0) c = y2 + (c - y2) * ((1.0 - y2) / max(1e-6, m - y2)); return c; }
 vec2 fitHue; float fitOn;   // the colour's own hue (OKLab) before Fit range: palPick matches with it (RGB alone turned a pink sky red)
@@ -140,10 +142,9 @@ vec3 fitCol(vec3 c, float lo, float hi, float ylo, float yhi, float lum){   // (
   return clamp(y + d * clamp(min(min(min(up.r, up.g), up.b), min(min(dn.r, dn.g), dn.b)), 0.0, 1.0), 0.0, 1.0); }
 vec3 palLin(vec3 c){ c = clamp(c, 0.0, 1.0); return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
   float palB2(vec2 a){ a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }
-  float palB4(vec2 a){ return palB2(0.5 * a) * 0.25 + palB2(a); }
-  vec3 palPick(vec3 c, float d, float p, vec2 q){
-    vec3 best = pal[0], sec = pal[0], k = okLab(c), bk = palOk[0], W = vec3(0.55, 0.75, 0.55); float bd = 1e9, t = 0.0, tk = 0.0;   // (0.99.12: blue counts 0.55, was 0.35: on CGA 3 a blue went to light red because cyan's green was too far)
-    if (d > 0.001 && palN < 4.5) d = 0.3 + 0.55 * d;   // 4 colours or fewer: the slider's low end is a gentle dither, not a hard threshold (1-bit vanished at 20 %); its top is one notch short of full mixing (0.99.14: 100 % looked too far)
+  float palB4(vec2 a){ return palB2(0.5 * a) * 0.25 + palB2(a); }`;
+const PALDITH_GLSL = `if (d > 0.001 && palN < 4.5) d = 0.3 + 0.55 * d;   // 4 colours or fewer: the slider's low end is a gentle dither, not a hard threshold (1-bit vanished at 20 %); its top is one notch short of full mixing (0.99.14: 100 % looked too far)`;
+const PALFIND_GLSL = `vec3 best = pal[0], sec = pal[0], k = okLab(c), bk = palOk[0], W = vec3(0.55, 0.75, 0.55); float bd = 1e9, t = 0.0, tk = 0.0;   // (0.99.12: blue counts 0.55, was 0.35: on CGA 3 a blue went to light red because cyan's green was too far)
     if (palLum > 0.5){
       float y = clamp(dot(c, vec3(0.299, 0.587, 0.114)), 0.0, 0.9999) * palN, n = floor(y), n2 = clamp(y - n < 0.5 ? n - 1.0 : n + 1.0, 0.0, palN - 1.0);
       for (int i = 0; i < 64; i++){ if (float(i) >= palN) break; if (float(i) == n) best = pal[i]; if (float(i) == n2) sec = pal[i]; }
@@ -155,15 +156,19 @@ vec3 palLin(vec3 c){ c = clamp(c, 0.0, 1.0); return mix(c / 12.92, pow((c + 0.05
       if (d > 0.001 && palN > 1.5){ float br = 1e9; vec3 kb = k - bk;
         for (int i = 0; i < 64; i++){ if (float(i) >= palN) break; vec3 ab = palOk[i] - bk; float L = dot(ab, ab); if (L < 1e-8) continue;
           float u = dot(kb, ab) / L; if (u <= 0.0) continue; u = min(u, 1.0); vec3 r = kb - u * ab; float e = dot(r, r) + 0.1 * L; if (e < br){ br = e; sec = pal[i]; tk = u; } } }
-    }
-    if (d < 0.001 || palN < 1.5) return best;
+    }`;
+const PALMIX_GLSL = `if (d < 0.001 || palN < 1.5) return best;
     vec3 bl = palLin(best), ab = palLin(sec) - bl, cl = palLin(c), Y = vec3(0.2126, 0.7152, 0.0722); float ay = dot(ab, Y);
     t = palLum > 0.5 ? (abs(ay) > 1e-6 ? clamp(dot(cl - bl, Y) / ay, 0.0, 1.0) : 0.0) : clamp(dot(cl - bl, ab) / max(dot(ab, ab), 1e-9), 0.0, 1.0);
     if (p < 0.5 || p > 1.5) t = palLum > 0.5 ? t : (t + tk) * 0.5;
     t = clamp((t - 0.5) / (p < 0.5 ? d * 0.5 : d) + 0.5, 0.0, 1.0) * step(0.001, t);   // less Dither: the pattern only where c is near halfway
     if (p > 1.5) t = t < 0.25 ? 0.0 : t > 0.75 ? 1.0 : 0.51;   // Checker: flat, or exactly half and half
     float th = p > 1.5 ? mod(q.x + q.y, 2.0) * 0.5 + 0.25 : p > 0.5 ? palB4(q) + 0.03125 : fract(52.9829189 * fract(dot(q, vec2(0.06711056, 0.00583715))));   // Noise: interleaved gradient noise (even grain, no clumps)
-    return th < t ? sec : best; }`;
+    return th < t ? sec : best;`;
+const PALSNAP_GLSL = `${PALFIT_GLSL}
+  vec3 palPick(vec3 c, float d, float p, vec2 q){ ${PALDITH_GLSL}
+    ${PALFIND_GLSL}
+    ${PALMIX_GLSL} }`;
 const GAP_OPTS = [[0, 'off'], [0.25,'1/16'],[0.5,'1/8'],[1,'1/4'],[2,'1/2'],[4,'1 bar'],[8,'2 bars'],[16,'4 bars'],[32,'8 bars']];   // LFO Gap: a pause after each cycle
 const PER_OPTS = [[0.25,'1/16'],[0.5,'1/8'],[1,'1/4'],[1.5,'3/8'],[2,'1/2'],[3,'3/4'],[4,'1 bar'],[6,'1½ bars'],[8,'2 bars'],[12,'3 bars'],[16,'4 bars'],[24,'6 bars'],[32,'8 bars'],[48,'12 bars'],[64,'16 bars']];   // (0.94: dotted / triple steps)
 // 0.99.5: Cycle in three families, a switch beside the slider (PER_OPTS stays: every older value is in Even or Dotted)
