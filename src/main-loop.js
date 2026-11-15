@@ -22,7 +22,8 @@ function restartLoop(){ loopGen++; schedule(); }
 setInterval(() => { if (performance.now() - lastFrame > 400) restartLoop(); }, 250);
 document.addEventListener('visibilitychange', () => restartLoop());   // shown / hidden: move the loop to a window that's showing
 // ---------- load meter: how much of each second VJif's frame work takes, plus missed screen refreshes and stalls ----------
-const meter = { busy: 0, peak: 0, drops: 0, gaps: [], longN: 0, longMs: 0 };
+const meter = { busy: 0, peak: 0, drops: 0, gaps: [], longN: 0, longMs: 0, hzBy: {} };   // hzBy: the refresh rate seen from each window that drives the loop (control, output): the FPS line shows the one in use
+const screenHz = () => meter.hzBy[driver] || 60;
 try { new PerformanceObserver(l => l.getEntries().forEach(en => { meter.longN++; meter.longMs += en.duration; })).observe({ type: 'longtask', buffered: false }); } catch (e) {}
 let prevFrameT = 0, brbUIt = 0;
 // On a screen faster than 120 Hz or so, only every 2nd (3rd…) refresh is drawn: 60 to 119 frames a second, which a 60 Hz
@@ -31,9 +32,9 @@ let fpsCap = Prefs.get('vjif-fpscap') !== '0', lastStep = 0;
 { const el = $('#fpsCapChk'); el.checked = fpsCap; el.addEventListener('change', () => { fpsCap = el.checked; Prefs.set('vjif-fpscap', fpsCap ? '1' : '0'); }); }
 function frame(gen){
   if (gen !== loopGen) return;                       // a stale loop: drop it
-  if (fpsCap && driver !== 'timer' && meter.hz >= 120){
-    const now = performance.now(), every = Math.floor(meter.hz / 60);
-    if (now - lastStep < (every - 0.5) * 1000 / meter.hz){ lastFrame = now; schedule(); return; }   // (half a refresh of slack: the refreshes aren't exactly on time)
+  if (fpsCap && driver !== 'timer' && screenHz() >= 120){
+    const now = performance.now(), hz = screenHz(), every = Math.floor(hz / 60);
+    if (now - lastStep < (every - 0.5) * 1000 / hz){ lastFrame = now; schedule(); return; }   // (half a refresh of slack: the refreshes aren't exactly on time)
     lastStep = now;
   }
   step();
@@ -74,8 +75,8 @@ function step(){
     // the screen's own rate: the shortest gaps seen (remembered — a busy second can't lower it)
     // the screen's own rate: the median gap of a full second (one odd short gap can't fake it), snapped to the usual refresh rates and remembered (a busy second can't lower it)
     if (g.length > 20){ const hz = 1000 / g[Math.floor(g.length * 0.5)], R = [30, 48, 50, 60, 72, 75, 85, 90, 100, 120, 144, 165, 170, 180, 200, 240, 280, 360];
-      const near = R.reduce((a, r) => Math.abs(r - hz) < Math.abs(a - hz) ? r : a); if (Math.abs(near - hz) / near < 0.08) meter.hz = Math.max(meter.hz || 0, near); }
-    meter.hz = meter.hz || 60;
+      const near = R.reduce((a, r) => Math.abs(r - hz) < Math.abs(a - hz) ? r : a); if (Math.abs(near - hz) / near < 0.08) meter.hzBy[driver] = Math.max(meter.hzBy[driver] || 0, near); }
+    meter.hz = screenHz();
     const fps = Math.round(fpsN / s), hz = meter.hz, lo = $('#load'), capped = fpsCap && driver !== 'timer' && hz >= 120;
     el.innerHTML = `<i>FPS</i>${fps}/${hz}`;
     const goal = Math.min(hz, 60);                     // smooth enough = 60 fps (or the screen's rate if lower)
