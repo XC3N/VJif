@@ -57,7 +57,7 @@ function applyLatched(list, b = clock.beat, A = scSt){
 const sceneLayers = () => layers.map(L => L.i === GLOBAL_LAYER ? Object.assign(emptyLayer(), { i: L.i }) : layerState(L)), scenePadGifs = () => pads.map((p, k) => isGlobalPad(k) ? null : p.gif);
 const captureScene = () => ({ fxOn: latchedNow(), layers: sceneLayers(), pads: scenePadGifs(), thumb: layers.some(L => L.clips.length) ? (!document.hidden && liveThumb) || sceneThumb() : null, name: liveName, pick: { pad: selPad, target } });
 function gotoScene(i, beat = clock.beat, instant = false){
-  if (i === sceneIdx) return;
+  if (i === sceneIdx || scBusy(i)) return;           // (opening VJif: that scene's GIFs are still decoding)
   if (hist.ready) commit();                          // an edit still waiting for its undo step gets it now, in its own scene
   // keep what's on screen for the transition (its clips keep playing while it fades / slides out)
   // changing again mid-transition: the running one is held where it is and becomes the leaving side, both its scenes still playing
@@ -88,6 +88,7 @@ function gotoScene(i, beat = clock.beat, instant = false){
 function sceneKey(i){   // (an absolute scene index; the numpad and the Launchpad pass bankScene(k))
   const back = brb.on && !(prep && brb.link); if (back) brbStop();          // you're back (linked to Prep: BRB keeps the output going while you edit): a scene key takes control again (on the downbeat, whatever Snap is)
   if (i === sceneIdx){ pendingScene = null; renderScenes(); return; }
+  if (scBusy(i)) return;
   if (prep) return gotoScene(i, clock.beat, true);   // preparing: just open that scene (the output doesn't change)
   const at = back ? barBeat(clock.beat) : snapBeat(clock.beat);
   if (at <= clock.beat) return gotoScene(i, at);
@@ -106,6 +107,9 @@ function renderScenes(){
   box.dataset.bank = scBank;
   [...box.children].forEach((b, i) => {
     if (Math.floor(i / SC_BANK) !== scBank && i !== sceneIdx) return;   // (another bank's tiles aren't on show: brought up to date when they are)
+    const ld = sceneLoading.get(i); b.classList.toggle('loading', !!ld);
+    if (ld){ b.classList.remove('cur', 'onair', 'wait', 'empty', 'blank', 'padsOnly'); const bg = ld.thumb ? `url(${ld.thumb})` : ''; if (b._bg !== bg){ b._bg = bg; b.style.backgroundImage = bg; }   // its GIFs are still decoding: its saved picture, dimmed
+      b.querySelector('.n').textContent = 'loading…'; b.querySelector('.nm').textContent = ld.name; b.title = `Scene ${i + 1}${ld.name ? ' — ' + ld.name : ''}: still loading`; return; }
     const n = sceneCount(i), np = scenePads(i), th = i === sceneIdx ? liveThumb : scenes[i] && scenes[i].thumb;
     b.classList.toggle('cur', i === sceneIdx); b.classList.toggle('onair', !!prep && i === prep.scene); b.classList.toggle('wait', !!pendingScene && pendingScene.i === i); b.classList.toggle('empty', !n); b.classList.toggle('blank', !n && !np);
     const pg = !n && np ? (i === sceneIdx ? scenePadGifs() : scenes[i].pads).find(Boolean) : null;   // pads loaded but nothing playing: show the first GIF, dimmed
@@ -173,6 +177,7 @@ brbUI();
 // scene names: right-click a tile to type one (a click would go to the scene) (Enter or clicking away keeps it, Esc cancels, empty = no name)
 const sceneName = i => i === sceneIdx ? liveName : scenes[i] && scenes[i].name || '';
 function setSceneName(i, name){
+  if (scBusy(i)) return;
   name = name.trim().slice(0, 40);
   if (i === sceneIdx) liveName = name;
   else { if (!scenes[i]) scenes[i] = emptyScene(); scenes[i].name = name; }
@@ -224,6 +229,7 @@ $('#scenes').addEventListener('pointercancel', () => scDragStop(null));
 addEventListener('keydown', e => { if (scDrag && DEL_KEYS.includes(e.key)){ scDrag.copy = true; scDragMark(); } });
 addEventListener('keyup', e => { if (scDrag && DEL_KEYS.includes(e.key)){ scDrag.copy = false; scDragMark(); } });
 function sceneDrop(a, t, copy, armed){
+  if (scBusy()) return;
   if (copy){ hushDel(); if (a === t) return; if (!sceneCount(a) && !scenePads(a)) return toast('That scene is empty: nothing to copy');
     if (scFull(t)){                                     // onto a scene with something in it: only after holding there (one undo step)
       if (!armed) return toast(`Scene ${t + 1} isn't empty: hold over it until the bar fills, then drop, to replace it`);
@@ -252,7 +258,7 @@ $('#scenes').addEventListener('drop', e => {
   if (files.length) loadFilesToScene(files, si);
 });
 function swapScenes(a, b){
-  if (a === b || !(a >= 0 && b >= 0)) return;
+  if (a === b || !(a >= 0 && b >= 0) || scBusy()) return;
   const map = i => i === a ? b : i === b ? a : i;
   if (a === sceneIdx || b === sceneIdx){                  // the live scene just changes number
     const other = a === sceneIdx ? b : a;
@@ -314,6 +320,7 @@ document.addEventListener('visibilitychange', () => { redraw.all = true; });
 // The scene part is what a set stores for a scene (pads, layers with masks, name, its latched effects); Global pads and
 // Overlay stay out. Import: into the first empty scene from the bank on show (or the one dropped on); its GIFs join the pool.
 async function exportScene(i = sceneIdx){
+  if (scBusy(i)) return;
   const live = i === sceneIdx, sc = live ? null : scenes[i];
   if (!live && !sc) return toast(`Scene ${i + 1} is empty`);
   const P = (live ? scenePadGifs() : sc.pads).map((g, k) => isGlobalPad(k) ? null : g), Ls = (live ? layers : sc.layers).map(L => L.i === GLOBAL_LAYER ? Object.assign(emptyLayer(), { i: L.i }) : L);
@@ -336,6 +343,7 @@ async function exportScene(i = sceneIdx){
   saveFile(blob, fn); toast2(`Exported ${fn} (downloads folder)`);
 }
 async function importScene(file, at = -1){
+  if (scBusy()) return;
   if (prep) return toast('Go live first (Enter): Prep keeps the output on the current set');
   try {
     const zf = await readZip(file), meta = zf.get('scene.json'); if (!meta) throw new Error('no scene.json inside');

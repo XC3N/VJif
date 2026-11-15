@@ -4,6 +4,13 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
+## 0.99.42 — 2026/11/14
+
+Opening VJif, from the performance review of 0.99.40.
+
+- The live scene is on screen as soon as its own GIFs are decoded (its pads and the Global ones). VJif used to decode every GIF of every scene of the set before showing anything. The other scenes now load after it, the nearest first: until a scene is in, its tile is dimmed and says "loading…", and it can't be opened, renamed, swapped or dropped on. The top bar still counts the files. Nothing is saved until the whole set is back, so closing the page halfway loses nothing. Loading another set while playing is unchanged (it still swaps in whole).
+- The page no longer waits for Google Fonts before it shows. With a slow or missing connection (venue wifi) the window stayed blank until the fonts' stylesheet answered or timed out. It now loads beside the page: the interface shows at once in a standby font and changes when the fonts arrive; lettering waits for them (4 s at most) so it is drawn in its own font.
+
 ## 0.99.41 — 2026/11/14
 
 First fixes from the performance review of 0.99.40.

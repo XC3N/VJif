@@ -86,7 +86,7 @@ function padDragEnd(e, i){
   pads[i].el._shift = true;                          // the click that follows the drag isn't a click on the pad
   const tt = e && document.elementFromPoint(e.clientX, e.clientY), sct = tt && tt.closest('#scenes .scene');
   if (sct){                                          // let go on a scene tile: a copy onto that scene's first empty pad (you stay where you are)
-    const si = +sct.dataset.i, g = d.carry || pads[i].gif; if (!g || (si === sceneIdx && !d.carry)) return true;
+    const si = +sct.dataset.i, g = d.carry || pads[i].gif; if (!g || (si === sceneIdx && !d.carry) || scBusy(si)) return true;
     const j = nextEmptyIn(si); if (j < 0) return toast(`Scene ${si + 1}'s 9 Scene pads are full`), true;
     if (si === sceneIdx){ commit(); pads[j].gif = cloneInst(g); pushStep({ kind: 'swap', pad: j, g: null, sid: sidNow() }); hist.cur = histState(); updHistUI(); afterPadChange(j); }
     else { const sc = scenes[si] || (scenes[si] = emptyScene()); sc.pads[j] = cloneInst(g); renderScenes(); updateMem(); }
