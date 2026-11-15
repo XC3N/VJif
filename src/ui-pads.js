@@ -157,8 +157,11 @@ function gifTile(g){
   g.tileFmt = format; return g.tileThumb = c.toDataURL('image/jpeg', 0.8);
 }
 // small cover-cropped copy for the layer chips and scene tiles (made on demand for GIFs of scenes not on screen)
+// what a GIF's small pictures are made from: they are redone when this changes, not when the GIF moves to another pad or its scene comes back
+const gifThumbSig = g => `${g.fxVer}|${g.startF}|${g.crisp}|${g.key && g.key.on}`;
 function gifThumb(g, f = fxImage(g, g.startF)){
   if (g.thumb) return g.thumb;
+  g.thumbSig = gifThumbSig(g);
   const [t, tx] = cpuCanvas(52, 48), k = Math.max(t.width / f.width, t.height / f.height);
   tx.imageSmoothingEnabled = !g.crisp; tx.drawImage(f, (t.width - f.width*k)/2, (t.height - f.height*k)/2, f.width*k, f.height*k);
   { const d = tx.getImageData(0, 0, t.width, t.height).data, W = t.width, H = t.height; let s = 0, e = 0, ne = 0;   // dark: its edge (what meets the dark card) or the whole of it (0.99.5: the edge counts, a black GIF with a bright middle had no outline)
@@ -192,18 +195,19 @@ function renderPad(i){
   x.imageSmoothingEnabled = !p.gif.crisp;
   const f = fxImage(p.gif, p.gif.startF), s = Math.min(c.width / f.width, c.height / f.height);
   x.drawImage(f, (c.width - f.width*s)/2, (c.height - f.height*s)/2, f.width*s, f.height*s);
-  p.gif.thumb = p.gif.tileThumb = null; gifThumb(p.gif, f);
+  if (!g.thumb || g.thumbSig !== gifThumbSig(g)){ g.thumb = g.tileThumb = null; gifThumb(g, f); }   // (0.99.41: a scene change redid all of them, on the beat)
   document.querySelectorAll(`.chip[data-pad="${i}"]`).forEach(ch => ch.style.backgroundImage = `url(${p.gif.thumb})`);
   if (i === selPad) drawGifThumb();   // its colour / start frame / key changed
 }
 // later: the GIF panel is brought up to date after the frame is drawn (a pad hit or scene change inside the frame)
 function selectPad(i, later = false){ selPad = i; noSel = false; pads.forEach(p => { if (p.el.classList.contains('sel') !== (p.i === i)) p.el.classList.toggle('sel', p.i === i); }); if (later) uiLater(UI.GIF); else { uiDue &= ~UI.GIF; syncGifUI(); } }
 // ---- panel updates wanted by something that happened inside a frame: done once, after drawing ----
-const UI = { GIF: 1, LAYERS: 2, XF: 4, SCENES: 8, POOL: 16 };
+const UI = { GIF: 1, LAYERS: 2, XF: 4, SCENES: 8, POOL: 16, PADS: 32 };
 let uiDue = 0;
 const uiLater = f => { uiDue |= f; };
 function flushUI(){
   const f = uiDue; if (!f) return; uiDue = 0;
+  if (f & UI.PADS) pads.forEach((p, k) => isGlobalPad(k) || renderPad(k));   // (before the layers: their chips show the pads' pictures)
   if (f & UI.GIF) syncGifUI(); if (f & UI.LAYERS) syncLayerUI(); if (f & UI.XF) syncXfUI(); if (f & UI.SCENES) renderScenes(); if (f & UI.POOL) renderPool();
 }
 // select a pad to edit it, without playing it: its GIF settings, and its sprite in Transform if it's on a layer

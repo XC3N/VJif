@@ -4,6 +4,13 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
+## 0.99.41 — 2026/11/14
+
+First fixes from the performance review of 0.99.40.
+
+- Changing scene no longer redoes the small picture of every pad on the beat. Each GIF's chip and tile pictures were thrown away and made again (drawn, read back, encoded) whenever a pad got another GIF, so a scene change did it for all of the scene's pads inside the frame of the cut. A GIF now keeps its pictures until its colour, start frame, smoothing or key changes, and the pads are repainted just after the new scene's first frame is out, with the other panels.
+- On a screen of 120 Hz or more, VJif draws every 2nd (or 3rd…) refresh: 60 to 119 frames a second instead of 120 to 360. A 60 Hz projector shows the same, and the graphics card does half the work or less when effects are on. Settings › Interface › Limit frame rate turns it off; the FPS tooltip says when it is at work. Screens under 120 Hz are unchanged.
+
 ## 0.99.40 — 2026/11/12
 
 - Changing scene again while a transition is still running no longer freezes the scene you are leaving. Going back and forth between two scenes with a 4-bar fade, the old scene stopped (it was a still of the screen at that moment) until the new transition ended. Now the running transition is held where it was and both its scenes keep playing underneath, as the leaving side of the new one; the same when a layer's own on / off transition is interrupted. Flipping quickly back and forth keeps the last five held transitions playing, and the picture never jumps: what is hidden under a nearly complete mix is let go, and only a sixth, older one is frozen into a still instead of being cut.
