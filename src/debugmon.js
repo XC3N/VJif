@@ -38,6 +38,7 @@ function dbgDraw(){
     last.heap !== null ? `JS heap ${last.heap.toFixed(0)} MB` + (slope === null ? ' (the trend shows after a minute)' : ` · last 10 min: ${slope >= 0 ? '+' : ''}${slope.toFixed(2)} MB/min` + (slope > 1 ? ' — rising' : ' — flat')) : 'JS heap: only Chrome / Edge report it',
     `Decoded frames ${last.pool.toFixed(0)} MB (${last.gifs} GIFs in the pool) + processed copies / key masks ${last.extra.toFixed(0)} MB`,
     `Start: ready ${(bootT.readyAt / 1000).toFixed(1)} s after the page opened · restoring the set ${(bootT.restoreMs / 1000).toFixed(1)} s · shaders: ${bootT.link.map(([n, ms]) => n + ' ' + ms + ' ms').join(', ') || '—'}`,
+    `Test switches: texture reads with an explicit level ${bootT.lod ? 'ON' : 'off' + (AB.get('lod') === '0' ? ' (?lod=0)' : ' (not available on this graphics card)')} · halving quality ${HALF_Q}`,
     `Start timeline (s since the page opened): ${bootT.marks.map(([n, ms]) => n + ' ' + (ms / 1000).toFixed(1)).join(' → ')}`,
     `GIF instances alive: ${last.insts} · with processed frames cached: ${last.cached}`, '',
     'A line that keeps climbing (heap or decoded frames) points at VJif; flat memory with a wandering load or FPS points at the PC.'].join('\n');
