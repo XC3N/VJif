@@ -139,25 +139,40 @@ async function autosave(force = false){
 // Decodes what's missing while the current set keeps playing, reuses GIFs that are already decoded
 // (same file), waits for the swap point, then swaps everything in one go.
 let setsBusy = false;
-async function applySnapshot(st, { wait = true } = {}){
+// liveFirst (opening VJif, 0.99.42): the swap happens as soon as the live scene's GIFs (its pads and the Global ones) are decoded;
+// the other scenes follow in the background, nearest first. Until a scene's GIFs are in, its slot is in sceneLoading: its tile
+// shows its saved picture, it can't be opened or changed, and nothing is saved (restore() holds autosave until this returns).
+const sceneLoading = new Map();                      // scene index → { ss: its saved part, thumb, name }
+const scBusy = i => (i === undefined ? sceneLoading.size : sceneLoading.has(i)) ? (toast(i === undefined ? 'The other scenes are still loading' : `Scene ${i + 1} is still loading`), true) : false;
+async function applySnapshot(st, { wait = true, liveFirst = false } = {}){
   st = upgradeSnap(st);
   const scPads = [st.pads, ...st.scenes.map(sc => sc && sc.pads)].filter(Boolean);
   scPads.flat().forEach(sp => { if (sp && !st.pool.some(e => e.hash === sp.hash)) st.pool.push({ hash: sp.hash, name: sp.name }); });
   const have = new Map(pool.map(m => [m.hash, m])), got = new Map();
-  const todo = st.pool.filter(e => !have.has(e.hash));
+  let todo = st.pool.filter(e => !have.has(e.hash));
   let done = 0, missing = 0;
-  const stat = () => { $('#saveStat').textContent = todo.length ? `loading ${done}/${todo.length}` : ''; };
+  const stat = () => { $('#saveStat').textContent = todo.length && done < todo.length ? `loading ${done}/${todo.length}` : ''; };
   stat();
-  await Promise.all(todo.map(async e => {
+  const load = async e => {
     try {
       const rec = await store.get('gif:' + e.hash);
       if (!rec){ missing++; return; }
       const m = await decodeAnim(rec.blob, rec.name, e.scale || 1); m.hash = e.hash; got.set(e.hash, m);
     } catch (err) { missing++; }
     done++; stat();
-  }));
+  };
+  const idx0 = st.scene || 0, hashesOf = P => new Set((P || []).filter(Boolean).map(sp => sp.hash));
+  const live = hashesOf(st.pads), jobs = new Map();   // hash → its decode (the ones started after the swap)
+  let later = [];
+  if (liveFirst){                                       // the rest in the order the scenes will want them: the nearest scene first, GIFs on no pad last
+    const far = i => Math.abs(i - idx0), order = st.scenes.map((sc, i) => i).filter(i => i !== idx0 && st.scenes[i]).sort((a, b) => far(a) - far(b));
+    const rank = new Map(); order.forEach((i, k) => hashesOf(st.scenes[i].pads).forEach(h => { if (!rank.has(h)) rank.set(h, k); }));
+    later = todo.filter(e => !live.has(e.hash)).sort((a, b) => (rank.get(a.hash) ?? 1e9) - (rank.get(b.hash) ?? 1e9));
+    await Promise.all(todo.filter(e => live.has(e.hash)).map(load));
+  } else await Promise.all(todo.map(load));
   if (wait) await swapPoint();
-  setGen++;
+  const gen = ++setGen; sceneLoading.clear();
+  later.forEach(e => jobs.set(e.hash, load(e)));
   // swap: drop every instance of the old set (pads, scenes, undo) and the GIFs the new one doesn't use
   dropAll(hist.undo); dropAll(hist.redo); hist.undo.length = hist.redo.length = 0;
   [...insts.values()].forEach(freeGif);
@@ -167,6 +182,8 @@ async function applySnapshot(st, { wait = true } = {}){
   pool.length = 0; st.pool.forEach(e => { const m = have.get(e.hash) || got.get(e.hash); if (m){ pool.push(m); if ((m.scale || 1) !== (e.scale || 1)) setMediaScale(m, e.scale || 1); } });
   const byHash = new Map(pool.map(m => [m.hash, m]));
   const mk = sp => { const m = sp && byHash.get(sp.hash); if (!m) return null; const g = makeInst(m, sp); if (g.key.on || hsvOn(g)) applyFx(g); return g; };
+  const mkScene = (ss, i, now) => { const gs = pads.map((_, k) => mk(ss.pads[k]));
+    return { pads: gs, layers: deserLayers(ss.layers, now, gs).map((l, li) => Object.assign(l, { i: li })), thumb: st.thumbs && st.thumbs[i] || null, name: ss.name || '', fxOn: ss.fxOn || null }; };
   const curGifs = st.pads.map(mk); pads.forEach((p, i) => p.gif = curGifs[i] || null);
   setFormat(st.format || '16:9', { quiet: true, force: true });
   setBpm(st.bpm); snapMode = st.snap || 'off'; $('#snap').value = snapMode;
@@ -174,8 +191,8 @@ async function applySnapshot(st, { wait = true } = {}){
   deserLayers(st.layers, now).forEach((s, li) => Object.assign(layers[li], s));
   for (let i = 0; i < N_SCENES; i++){
     const ss = i !== idx && st.scenes[i]; if (!ss){ scenes[i] = null; continue; }
-    const gs = pads.map((_, k) => mk(ss.pads[k]));
-    scenes[i] = { pads: gs, layers: deserLayers(ss.layers, now, gs).map((l, li) => Object.assign(l, { i: li })), thumb: st.thumbs && st.thumbs[i] || null, name: ss.name || '', fxOn: ss.fxOn || null };
+    if ([...hashesOf(ss.pads)].some(h => jobs.has(h))){ scenes[i] = null; sceneLoading.set(i, { ss, thumb: st.thumbs && st.thumbs[i] || null, name: ss.name || '' }); continue; }   // its GIFs are still decoding
+    scenes[i] = mkScene(ss, i, now);
   }
   sceneIdx = idx; pendingScene = null; liveThumb = st.thumbs && st.thumbs[idx] || null; liveName = st.sceneName || ''; endTrans(); dropPrep(); scBank = Math.floor(idx / SC_BANK); setScBank(scBank); renderScenes();
   pending.clear(); pads.forEach(p => p.el.classList.remove('wait')); heldPre = -1;
@@ -195,6 +212,21 @@ async function applySnapshot(st, { wait = true } = {}){
   { const c = selClip(target); selectPad(c ? c.pad : Math.max(0, pads.findIndex(p => p.gif))); } syncLayerUI(); syncXfUI(); updateMem(); renderPool();   // 0.99.37: the GIF lit on the edited layer (the panel showed the first filled pad's while Background's chip was lit)
   resetHist();   // undo doesn't reach across sets
   redraw.all = true;
+  stat();
+  if (jobs.size){                                       // liveFirst: the live scene is on; now the others, each as soon as its GIFs are in
+    bootMark('live scene shown');
+    const stale = () => gen !== setGen, add = () => { for (const e of st.pool){ const m = got.get(e.hash); if (m && !pool.includes(m)){ pool.push(m); byHash.set(e.hash, m); } } };
+    for (const [i, ld] of [...sceneLoading]){
+      await Promise.all([...hashesOf(ld.ss.pads)].map(h => jobs.get(h)));
+      if (stale()) break;
+      add(); try { scenes[i] = mkScene(ld.ss, i, performance.now()); } catch (err) { missing++; }
+      sceneLoading.delete(i); renderScenes();
+    }
+    await Promise.all(jobs.values());
+    if (stale()){ got.forEach(m => { if (!pool.includes(m)) m.src.forEach(f => f.close()); }); return; }   // another set was loaded meanwhile: these aren't its GIFs
+    add(); const at = new Map(st.pool.map((e, k) => [e.hash, k])); pool.sort((a, b) => (at.get(a.hash) ?? 1e9) - (at.get(b.hash) ?? 1e9));   // the pool in its saved order (files added meanwhile stay last)
+    renderScenes(); renderPool(); updateMem(); if (typeof lpRefresh === 'function') lpRefresh();
+  }
   $('#saveStat').textContent = '';
   if (missing) toast(`${missing} GIF file(s) of this set are missing from storage`);
 }

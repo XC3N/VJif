@@ -107,6 +107,7 @@ body.paddragging,body.paddragging *{cursor:grabbing!important}
 .scene.padsOnly .n{color:var(--muted);background:#000a}
 .scene.cur{box-shadow:0 0 0 2px var(--sig)}
 .scene.wait{animation:wait .25s steps(1) infinite}
+.scene.loading{opacity:.45;cursor:progress}
 .sub .info{display:inline-grid;place-items:center;width:13px;height:13px;border:1px solid var(--edge);border-radius:50%;font:600 9px var(--mono);color:var(--muted);cursor:help}.sub[title]{cursor:default}
 #guideEye .slash{display:none}#guideGrp.ghidden #guideEye .slash{display:inline}#guideGrp.ghidden [data-g].on{opacity:.45}   /* hidden: the eye is struck through, the guides that will come back stay marked, dimmed */
 #musGrp .iconbtn.on,#setBtn.on,#guideEye.on{color:var(--sig);border-color:var(--sig)}#learnBtn.on{color:var(--learn);border-color:var(--learn)}.volwrap{position:relative;display:inline-flex}

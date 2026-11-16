@@ -500,10 +500,11 @@ async function restore(){
       }
       st.v = 2;
     }
-    if (st){ $('#saveStat').textContent = 'restoring…'; const t0 = performance.now(); await applySnapshot(st, { wait: false }); bootT.restoreMs = Math.round(performance.now() - t0); }
+    if (st){ $('#saveStat').textContent = 'restoring…'; const t0 = performance.now(); setsBusy = true; await applySnapshot(st, { wait: false, liveFirst: true }); bootT.restoreMs = Math.round(performance.now() - t0); }
     session.savedSig = curSet() ? contentSig(curSet().snap) : '';
   } catch (e) { toast('Saved session could not be loaded: ' + e.message); }
   finally {
+    setsBusy = false; sceneLoading.clear();
     store.all('set:').then(rs => { rs.forEach(x => sets.set(x.id, x)); bootMark('all sets'); renderSets(); updSetLabel(); }).catch(() => {}).finally(() => setsDone());
     bootT.readyAt = Math.round(performance.now()); bootMark('ready'); syncLayerUI(); syncXfUI(); store.ready = true; store.last = snapshot(); musRestore();
     hist.cur = histState(); hist.ready = true;

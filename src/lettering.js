@@ -31,6 +31,7 @@ async function renderText(spec, OW = W, OH = H){   // OW × OH: the frame it's d
   const S = { ...TEXT_DEF, ...spec }, px = Math.max(4, Math.round(S.size * OH));
   const font = `${S.ital ? 'italic ' : ''}${S.bold ? 700 : 400} ${px}px "${S.font.replace(/"/g, '')}", sans-serif`;
   let txt = String(S.text); if (S.cs === 'upper') txt = txt.toUpperCase();
+  await fontsCss;   // (the web fonts' stylesheet loads after the page: before it's in, the font isn't known and the text would be drawn in a fallback)
   try { await document.fonts.load(font, txt.replace(/\|/g, '') || 'x'); } catch (e) {}
   // each line in up to two parts: before and after the first "|" (the accent; the bar itself isn't drawn)
   const raw = S.marquee ? [txt.replace(/\s*\n\s*/g, '   ')] : txt.split('\n');

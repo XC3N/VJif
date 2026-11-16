@@ -428,7 +428,13 @@ function makePost(){
     // whenever Chrome had no saved copy of it, and asking for its status straight away froze the whole page for that time. Now nothing asks until the
     // browser says it's done; until then `soft` stands in (as with a lost context). Without the extension: built at the first use, as before.
     const par = gl.getExtension('KHR_parallel_shader_compile'), t0 = performance.now(), progs = [];
-    const mk = (name, fs, core = true) => { const P = gl.createProgram(); P.sh = [[gl.VERTEX_SHADER, `attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x + 1.0, 1.0 - p.y) * 0.5; gl_Position = vec4(p, 0.0, 1.0); }`], [gl.FRAGMENT_SHADER, fs]].map(([t, s]) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); gl.attachShader(P, o); return o; });
+    // Texture reads with an explicit level (0.99.43, a test): the pictures have no smaller copies, so level 0 is the same picture. A plain
+    // texture2D picks its level from how the coordinates change across the screen, which Direct3D can't work out inside an if or a loop: it runs
+    // both sides of every if and writes every loop out in full, so a style that is off still costs its reads and the compile takes much longer.
+    // ?lod=0 in the address turns it off (to compare).
+    const lodX = AB.get('lod') !== '0' && gl.getExtension('EXT_shader_texture_lod'); bootT.lod = !!lodX;
+    const lod0 = fs => lodX ? '#extension GL_EXT_shader_texture_lod : enable\n#define tex0(s, p) texture2DLodEXT(s, p, 0.0)\n' + fs.replace(/\btexture2D\(/g, 'tex0(') : fs;
+    const mk = (name, fs, core = true) => { fs = lod0(fs); const P = gl.createProgram(); P.sh = [[gl.VERTEX_SHADER, `attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x + 1.0, 1.0 - p.y) * 0.5; gl_Position = vec4(p, 0.0, 1.0); }`], [gl.FRAGMENT_SHADER, fs]].map(([t, s]) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); gl.attachShader(P, o); return o; });
       gl.linkProgram(P); P.nm = name; if (core) progs.push(P); return P; };
     // 0.99.38: the effects shader comes in variants. Direct3D's compile time grows much faster than the shader: whole, 20 s on an Iris Xe; without the CRT, Glitch
     // and Codec parts, 1.2 s. So the base program (everything else) is built first, and the variants that add those parts (#ifdef FX_RGB / FX_GLITCH / FX_CODEC
@@ -1083,6 +1089,9 @@ function eighthFit(aw, ah, cw = CW, ch = CH){   // available screen pixels → [
 // Performance (0.97): the halves are shared by the preview and the output window within a frame (one chain per source
 // and frame): with the output at ½ and the preview at ¼, the ½ step is made once, not twice
 const halfChain = { src: null, gen: -1, n: 0, cv: [] };
+// 0.99.43, a test: 'high' can make the browser build a whole set of smaller copies of the frame for each draw; at exactly half size 'low' gives the
+// same picture. ?blit=high in the address brings the old setting back (to compare).
+const HALF_Q = AB.get('blit') === 'high' ? 'high' : 'low';
 let blitGen = 0;                                     // bumped once per drawn frame
 function blitTo(ctx, src, cache){
   const tw = ctx.canvas.width, th = ctx.canvas.height; let s = src, k = 0;
@@ -1092,7 +1101,7 @@ function blitTo(ctx, src, cache){
     if (k < H.n){ s = H.cv[k]; k++; continue; }       // made already this frame (for the other window)
     const c = H.cv[k] || (H.cv[k] = document.createElement('canvas')), w = s.width >> 1, h = s.height >> 1;
     if (c.width !== w || c.height !== h){ c.width = w; c.height = h; }
-    const x = c.getContext('2d', { alpha: false }); x.imageSmoothingQuality = 'high'; x.drawImage(s, 0, 0, w, h); s = c; k++; H.n = k;
+    const x = c.getContext('2d', { alpha: false }); x.imageSmoothingQuality = HALF_Q; x.drawImage(s, 0, 0, w, h); s = c; k++; H.n = k;   // (exactly half: plain smoothing already averages each 2 × 2)
   }
   ctx.imageSmoothingQuality = 'high'; ctx.drawImage(s, 0, 0, tw, th);
 }

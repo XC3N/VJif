@@ -193,7 +193,7 @@ async function loadInto(p, blob, name, si = sceneIdx){
 }
 // a pool GIF onto pad p of scene `si` (default: the current one), as a fresh instance; replaces what was there
 function putMedia(m, p, si = sceneIdx){
-  if (si < 0) return null;                           // that scene is gone
+  if (si < 0 || (si !== sceneIdx && !isGlobalPad(p) && scBusy(si))) return null;   // that scene is gone, or still loading
   const g = makeInst(m);
   if (isGlobalPad(p)) si = sceneIdx;                 // a Global pad is the same in every scene: it's always the live one
   if (si !== sceneIdx){                              // the scene was left while the file decoded: fill its pad only if still empty
@@ -270,6 +270,7 @@ function nextEmptyIn(si, exclude = new Set()){
 }
 // files dropped on a scene tile: each onto that scene's next empty pad (the scene you're on isn't changed)
 function loadFilesToScene(files, si){
+  if (si !== sceneIdx && scBusy(si)) return;
   const used = new Set(), jobs = [];
   for (let k = 0; k < files.length; k++){
     const p = nextEmptyIn(si, used);
