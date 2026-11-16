@@ -4,6 +4,15 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
+## 0.99.43 — 2026/11/15
+
+The effects shaders, from the performance review of 0.99.40.
+
+- The effects shaders compile several times faster on Windows. Measured on FYR's machine with the same build: the base effects program 0.3 s instead of 1.7 s, effects + CRT 0.6 s instead of 5.2 s, and all eight programs ready about 5 s after opening. Every texture read in the shaders now names its level (`texture2DLodEXT`, level 0) instead of letting the graphics card work it out from how the picture's coordinates change across the screen. Direct3D can't do that inside an `if` or a loop, so it wrote every loop out in full and ran both sides of every `if`: that is what made the compile time grow so much faster than the shader, and it also meant a style that was off could still cost its texture reads. The pictures have no smaller copies, so level 0 is the same picture (the render tests match). Whether the frame rate gains as well isn't measured yet.
+- The copies of the frame for the preview and the output window are made with plain smoothing when a step is exactly half the size (the result is the same average of each 2 × 2 pixels; "high" quality can make the browser build a whole set of smaller copies for every draw).
+- The FPS line's second number is the refresh rate of the screen that is driving the loop now (the output window's when it is open and showing, else this one). It was the fastest rate seen since opening, so it read 60/100 with the output open on a 60 Hz projector after the control window had run on a 100 Hz screen. The frame rate limit uses the same number.
+- To compare on your own machine, add `?lod=0` (the old texture reads) or `?blit=high` (the old smoothing) to the address; the monitor (Shift + right-click LOAD) says which are in use.
+
 ## 0.99.42 — 2026/11/14
 
 Opening VJif, from the performance review of 0.99.40.
