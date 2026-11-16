@@ -71,7 +71,7 @@ function gotoScene(i, beat = clock.beat, instant = false){
     Object.assign(L, layerProps(s));
     L.clips.forEach(c => { c.startBeat = beat; c.startTime = t0; c.env = null; c.hitBeat = undefined; });   // the scene starts from the top
   });
-  pads.forEach((p, k) => { if (isGlobalPad(k)) return; p.gif = sc ? sc.pads[k] || null : null; renderPad(k); });   // each scene has its own pads (a new one starts empty), the Global ones stay
+  pads.forEach((p, k) => { if (isGlobalPad(k)) return; p.gif = sc ? sc.pads[k] || null : null; });   // each scene has its own pads (a new one starts empty), the Global ones stay; they are repainted after the frame (UI.PADS)
   if (!trans) dropFxCache(left);                     // (with a transition: when it ends)
   scenes[i] = null; liveThumb = sc && sc.thumb; thumbKeep = liveThumb; liveName = sc && sc.name || '';
   if (trans && !trans.fx && scSt.some(S => S.on || S.held)) trans.fx = { cfg: fxCfg, pre: fxPre, st: fxSt, st2: scSt.map(S => ({ ...S })) };   // the scene being left keeps its own effects through the transition (Output's carry on in both)
@@ -80,7 +80,7 @@ function gotoScene(i, beat = clock.beat, instant = false){
   // what's selected: as you left this scene; else the edit layer stays and the GIF panel shows that layer's selected GIF
   if (sc && sc.pick){ target = sc.pick.target; selPad = sc.pick.pad; }
   else { const c = selClip(); if (c) selPad = c.pad; }
-  selectPad(selPad, true); uiLater(UI.LAYERS | UI.XF | UI.SCENES | UI.POOL); redraw.all = true;
+  selectPad(selPad, true); uiLater(UI.PADS | UI.LAYERS | UI.XF | UI.SCENES | UI.POOL); redraw.all = true;
   if (Math.floor(i / SC_BANK) !== scBank) setScBank(Math.floor(i / SC_BANK));   // the strip follows the live scene (MIDI, BRB, a drop…)
   if (hist.ready) hist.cur = histState();             // switching isn't an undo step
 }
