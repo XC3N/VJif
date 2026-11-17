@@ -14,10 +14,11 @@
  * @property {string} name
  * @property {Blob} blob          the original file (the colour worker decodes its own copy from it)
  * @property {string} type        MIME type
- * @property {ImageBitmap[]} src  the frames, decoded at the pool's scale
+ * @property {ImageBitmap[]} src  the frames at the pool's scale: reads like an array of pictures, kept packed (frames.js); never close one, use dropFrames(src)
  * @property {number[]} durs      each frame's duration (ms)
  * @property {number} w @property {number} h
- * @property {number} srcBytes    decoded size, for the memory readout
+ * @property {number} srcBytes    what the frames take as kept (packed), for the memory readout
+ * @property {number} [rawBytes]  what they take as pictures (4 bytes a pixel)
  * @property {number} [scale]     decode scale when it was resized on loading
  * @property {boolean} [px]       pixel art: scaled without smoothing
  * @property {Object} [text]      a Lettering pad: the text spec it was rendered from (TEXT_DEF fields)

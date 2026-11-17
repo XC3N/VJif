@@ -20,7 +20,7 @@ async function decodeOne(blob, name, scale = 1){
   if (!('ImageDecoder' in window)) throw new Error('this browser has no ImageDecoder (use Chrome)');
   const type = (blob.type && blob.type.startsWith('image/')) ? blob.type : guessType(name);
   if (!(await ImageDecoder.isTypeSupported(type))) throw new Error('unsupported type ' + type);
-  const dec = new ImageDecoder({ data: await blob.arrayBuffer(), type }), frames = [], durs = []; let w = 0, h = 0, px = null;
+  const dec = new ImageDecoder({ data: await blob.arrayBuffer(), type }), frames = [], durs = []; let w = 0, h = 0, px = null, rawBytes = 0;
   try {                                               // a broken file: the decoder and the frames done so far are let go
   await dec.tracks.ready; await dec.completed;
   const n = Math.min(dec.tracks.selectedTrack.frameCount || 1, MAX_FRAMES);
@@ -31,15 +31,16 @@ async function decodeOne(blob, name, scale = 1){
     const nw = px ? w / px[0] : w, nh = px ? h / px[1] : h;
     const sc = Math.min(1, MAX_DIM / Math.max(nw, nh)) * scale;   // scale: the GIF's Resolution setting (less memory)
     const opts = px || sc < 1 ? { resizeWidth: Math.max(1, Math.round(nw * sc)), resizeHeight: Math.max(1, Math.round(nh * sc)), resizeQuality: px ? 'pixelated' : 'high' } : {};
-    frames.push(await createImageBitmap(image, opts));
+    const prev = frames[frames.length - 1];        // 0.99.44: kept packed (frames.js)
+    const f = (!opts.resizeWidth && await packVideoFrame(image, prev)) || packBitmap(await createImageBitmap(image, opts), prev); frames.push(f); rawBytes += f.raw;
     let d = (image.duration ?? 100000) / 1000;      // µs → ms
     if (!(d > 10)) d = 100;                          // browsers treat 0–10 ms GIF delays as 100 ms
     durs.push(d); image.close();
   }
-  } catch (err){ frames.forEach(f => f.close()); throw err; }
+  } catch (err){ dropFrames(packedList(frames)); throw err; }
   finally { dec.close(); }
-  const srcBytes = frames.reduce((a, f) => a + f.width * f.height * 4, 0);
-  return { name: name || 'untitled', blob, type, src: frames, durs, w, h, srcBytes, scale, px };
+  const srcBytes = [...new Set(frames)].reduce((a, f) => a + f.bytes, 0);   // what the frames take packed; rawBytes: as pictures (what it was before 0.99.44)
+  return { name: name || 'untitled', blob, type, src: packedList(frames), durs, w, h, srcBytes, rawBytes, scale, px };
 }
 // Pixel art saved blown up (each real pixel drawn as an N×N block) wastes N² times the memory. This finds the block
 // size from where the colour changes: in true blown-up pixel art every change falls on a multiple of N, across and
@@ -85,12 +86,12 @@ function gridOf(hist, len){
 async function setMediaScale(m, sc){
   if (m.text || (m.scale || 1) === sc) return;
   const r = await decodeAnim(m.blob, m.name, sc), old = m.src;
-  Object.assign(m, { src: r.src, srcBytes: r.srcBytes, scale: sc });
+  Object.assign(m, { src: r.src, srcBytes: r.srcBytes, rawBytes: r.rawBytes, scale: sc });
   insts.forEach(g => { if (g.media !== m) return;
-    const fx = g.frames !== g.src; if (fx) g.frames.forEach(f => f.close());
+    const fx = g.frames !== g.src; if (fx) dropFrames(g.frames);
     Object.assign(g, { src: m.src, frames: m.src, srcBytes: m.srcBytes, bytes: m.srcBytes, masks: null, thumb: null, tileThumb: null, fxP: null });
     if (fx || g.key.on || hsvOn(g) || swapOn(g)) applyFx(g); });
-  old.forEach(f => f.close());
+  dropFrames(old);
   pads.forEach(p => p.gif && p.gif.media === m && renderPad(p.i)); updateMem(); renderPool(); syncGifUI(); redraw.all = true;
 }
 // a new instance of a media; `saved` = settings to apply, else a fresh one fitted to the tempo
@@ -111,7 +112,7 @@ const SHADOW_DEF = { on: false, x: 8, y: 8, blur: 12, op: 0.6, col: '#000000', c
 const gifSettings = g => JSON.parse(JSON.stringify(Object.fromEntries(GIF_KEYS.map(k => [k, g[k]]))));
 // an independent copy (same frames, own settings), with its colour work started
 function cloneInst(g){ const c = makeInst(g.media, gifSettings(g)); c.seed = g.seed ?? g.uid; if (g.masks) c.masks = g.masks; if (fxActive(c)) applyFx(c); return c; }
-function freeMedia(m){ const i = pool.indexOf(m); if (i >= 0) pool.splice(i, 1); m.src.forEach(f => f.close()); }
+function freeMedia(m){ const i = pool.indexOf(m); if (i >= 0) pool.splice(i, 1); dropFrames(m.src); }
 // a GIF file → its media in the pool (decoded and stored the first time it's seen)
 const decoding = new Map();                           // hash → the decode in progress (the same file dropped twice decodes once)
 async function mediaFor(blob, name, gen = setGen){
@@ -120,8 +121,8 @@ async function mediaFor(blob, name, gen = setGen){
   if (decoding.has(hash)){ await decoding.get(hash).catch(() => {}); return mediaFor(blob, name, gen); }   // wait for that one, then take it from the pool (or decode again if it was dropped)
   const p = (async () => { try { return await decodeAnim(blob, name); } finally { decoding.delete(hash); } })(); decoding.set(hash, p);
   m = await p; m.hash = hash;
-  if (gen !== setGen){ m.src.forEach(f => f.close()); throw new Error('another set was loaded meanwhile'); }   // the set it was for is gone: not into the new one's pool
-  if (pool.find(x => x.hash === hash)){ m.src.forEach(f => f.close()); return pool.find(x => x.hash === hash); }   // decoded twice at once
+  if (gen !== setGen){ dropFrames(m.src); throw new Error('another set was loaded meanwhile'); }   // the set it was for is gone: not into the new one's pool
+  if (pool.find(x => x.hash === hash)){ dropFrames(m.src); return pool.find(x => x.hash === hash); }   // decoded twice at once
   pool.push(m); store.put('gif:' + hash, { name: m.name, blob }); renderPool();
   return m;
 }
@@ -144,7 +145,7 @@ function freeGif(g){
   g.keyGen++; g.maskGen++; clearTimeout(g.keyT); clearTimeout(g.maskT);
   if (fxWorker){ fxWorker.postMessage({ id: g.uid, gen: g.keyGen }); fxWorker.postMessage({ id: 'm' + g.uid, gen: g.maskGen });   // stop any work on it…
     fxWorker.postMessage({ id: g.uid, drop: true }); fxWorker.postMessage({ id: 'm' + g.uid, drop: true }); }   // …and forget it
-  if (g.frames !== g.src) g.frames.forEach(f => f.close());
+  if (g.frames !== g.src) dropFrames(g.frames);
   g.frames = g.src; g.masks = null; g.fxC = null; insts.delete(g.uid);
 }
 // instances on a pad somewhere: the live pads and every stored scene's

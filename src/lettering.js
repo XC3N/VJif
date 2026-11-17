@@ -128,7 +128,7 @@ async function retextAll(){
     Object.assign(m, r);
     insts.forEach(g => { if (g.media !== m) return;
       // as in setMediaScale: frames pre-processed for colour (worker path) are freed, and masks / colour params are redone
-      const fx = g.frames !== g.src; if (fx) g.frames.forEach(f => f.close());
+      const fx = g.frames !== g.src; if (fx) dropFrames(g.frames);
       Object.assign(g, { src: m.src, frames: m.src, w: m.w, h: m.h, srcBytes: m.srcBytes, bytes: m.srcBytes, masks: null, thumb: null, tileThumb: null, fxP: null });
       if (m.text.marquee && g.lfo.x && g.lfo.x.on){ const sp = Math.round((W + m.textW) / 2); g.lfo.x.min = sp; g.lfo.x.max = -sp; }
       rebuildSeq(g); if (fx || g.key.on || hsvOn(g) || swapOn(g)) applyFx(g); });

@@ -10,6 +10,6 @@ async def main():
     async with pg.expect_popup() as pop:
       await pg.evaluate("$('#load').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, shiftKey: true, button: 2 }))")
     w = await pop.value; await w.wait_for_selector('#tx'); await pg.wait_for_timeout(1500)
-    t = await w.inner_text('#tx'); print(t[:300]); assert 'FPS' in t and 'Decoded frames' in t and 'GIF instances' in t, t
+    t = await w.inner_text('#tx'); print(t[:300]); assert 'FPS' in t and 'packed' in t and 'unpacked now' in t and 'GIF instances' in t, t
     assert not errs, errs; await b.close(); print('ok')
 asyncio.run(main())

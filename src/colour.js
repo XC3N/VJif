@@ -88,22 +88,21 @@ const palOn = g => !!g.pal && !g.pal.off && g.pal.i >= 0 && !!FX_PALS[g.pal.i]; 
 // The result is kept per GIF (every frame, up to FXC_BYTES; 0.97) until its colour settings change: a 10 fps GIF on a 60 Hz screen
 // goes through the shader (and is copied back from the GPU) 10 times a second, not 60.
 function fxImage(g, fi, e){
-  const img = g.frames[fi];
-  if (!liveFx() || g.frames !== g.src) return img;
+  if (!liveFx() || g.frames !== g.src) return g.frames[fi];
   const auto = e && (e.H !== undefined || e.S !== undefined || e.V !== undefined);
-  if (!auto && !fxActive(g)) return img;
+  if (!auto && !fxActive(g)) return g.frames[fi];
   const base = g.fxP || (g.fxP = fxParams(g)), mask = g.key.on && g.key.region !== 'all' && g.masks ? g.masks[fi] : null;
   if (auto){                                         // automated colour changes every frame: nothing worth keeping
     const B = hsvOf(g), h = B.h + (e.H ?? 0), s = B.s * (e.S ?? 1), v = B.v * (e.V ?? 1);
-    return fxGL.render(img, Object.assign({}, base, { doHsv: h !== 0 || s !== 1 || v !== 1, H: h, S: s, V: v }), mask);
+    return fxGL.render(g.frames[fi], Object.assign({}, base, { doHsv: h !== 0 || s !== 1 || v !== 1, H: h, S: s, V: v }), mask);
   }
   let C = g.fxC; if (!C || C.p !== base || C.m !== g.masks) C = g.fxC = { p: base, m: g.masks, map: new Map(), order: [] };   // new colour settings or masks: start over
   C.t = performance.now();
   const hit = C.map.get(fi); if (hit) return hit.cv;
-  const out = fxGL.render(img, base, mask);
+  const out = fxGL.render(g.frames[fi], base, mask);   // (the frame is asked for only here: a coloured frame that is kept doesn't hold its packed original unpacked, 0.99.44)
   // Performance (0.97): every frame of the loop is kept (up to FXC_BYTES per GIF), so once the GIF has played through, its
   // coloured frames come from memory: no shader pass and no copy back from the GPU per new frame (it was two frames' worth)
-  const cap = Math.max(2, Math.min(g.src.length, Math.floor(Math.max(FXC_BYTES, Math.min(4 * FXC_BYTES, g.srcBytes || 0)) / Math.max(1, out.width * out.height * 4))));   // (as much again as its own frames, up to 128 MB)
+  const cap = Math.max(2, Math.min(g.src.length, Math.floor(Math.max(FXC_BYTES, Math.min(4 * FXC_BYTES, (g.media && g.media.rawBytes) || g.srcBytes || 0)) / Math.max(1, out.width * out.height * 4))));   // (as much again as its own frames, up to 128 MB)
   let ent; if (C.order.length >= cap){ const old = C.order.shift(); ent = C.map.get(old); C.map.delete(old); } else ent = { cv: new OffscreenCanvas(1, 1) };   // full: the oldest slot is reused
   if (!ent.x) ent.x = ent.cv.getContext('2d');
   if (ent.cv.width !== out.width || ent.cv.height !== out.height){ ent.cv.width = out.width; ent.cv.height = out.height; } else ent.x.clearRect(0, 0, out.width, out.height);
@@ -258,8 +257,8 @@ try {
 
 function fxDone(g, frames){
   const old = g.frames; g.frames = frames; g.fxP = null; g.tileThumb = null;
-  if (old !== g.src && old !== frames) old.forEach(f => f.close());
-  g.bytes = g.srcBytes * (frames === g.src ? 1 : 2); g.keyMsg = ''; g.fxVer++;
+  if (old !== g.src && old !== frames) dropFrames(old);
+  g.bytes = g.srcBytes + (frames === g.src ? 0 : (g.media && g.media.rawBytes) || g.srcBytes); g.keyMsg = ''; g.fxVer++;
   const pi = pads.findIndex(p => p.gif === g); if (pi >= 0) renderPad(pi);
   updateMem(); if (pads[selPad].gif === g) syncGifUI();
   g.fxWaits.splice(0).forEach(r => r());
@@ -274,7 +273,7 @@ function applyFx(g){
     g.fxP = null; fxDone(g, g.src); return wait;
   }
   if (!p.doKey && !p.doHsv && !(p.sw && p.sw.length) && !p.palN){ if (fxWorker) fxWorker.postMessage({ id: g.uid, gen }); fxDone(g, g.src); }
-  else if (fxWorker) fxWorker.postMessage({ id: g.uid, gen, blob: g.blob, type: g.type, n: g.src.length, w: g.src[0].width, h: g.src[0].height, q: g.media && g.media.px ? 'pixelated' : 'high', p });
+  else if (fxWorker) fxWorker.postMessage({ id: g.uid, gen, blob: g.blob, type: g.type, n: g.src.length, w: frameW(g.src), h: frameH(g.src), q: g.media && g.media.px ? 'pixelated' : 'high', p });
   else fxMain(g, gen, p);
   return wait;
 }
@@ -284,7 +283,7 @@ function dropMasks(g){ g.maskGen++; clearTimeout(g.maskT); if (g.masks){ g.masks
 function requestMasks(g){
   clearTimeout(g.maskT);
   g.maskT = setTimeout(() => {
-    const gen = ++g.maskGen, p = fxParams(g), w = g.src[0].width, h = g.src[0].height;
+    const gen = ++g.maskGen, p = fxParams(g), w = frameW(g.src), h = frameH(g.src);
     if (p.region === 'point' && !p.seed){ g.keyMsg = 'Region "From pick": click Pick, then the GIF'; gifMsg(g); return; }
     if (fxWorker) fxWorker.postMessage({ kind: 'mask', id: 'm' + g.uid, gen, blob: g.blob, type: g.type, n: g.src.length, w, h, q: g.media && g.media.px ? 'pixelated' : 'high', p });
     else masksMain(g, gen, p, w, h);
@@ -294,7 +293,7 @@ function maskMsg(m){
   const g = insts.get(+String(m.id).slice(1));
   if (!g || m.gen !== g.maskGen) return;
   if (m.masks) masksDone(g, m.masks.map(b => new Uint8Array(b)));
-  else if (m.error){ console.warn('mask worker:', m.error); masksMain(g, m.gen, fxParams(g), g.src[0].width, g.src[0].height); }
+  else if (m.error){ console.warn('mask worker:', m.error); masksMain(g, m.gen, fxParams(g), frameW(g.src), frameH(g.src)); }
   else { g.keyMsg = `finding edges ${m.progress}/${m.total}…`; gifMsg(g); }
 }
 function masksDone(g, masks){
@@ -313,7 +312,7 @@ async function masksMain(g, gen, p, w, h){            // no worker: same work on
   if (gen === g.maskGen) masksDone(g, out);
 }
 async function fxMain(g, gen, p){                    // fallback when workers aren't available
-  const w = g.src[0].width, h = g.src[0].height;
+  const w = frameW(g.src), h = frameH(g.src);
   const x = new OffscreenCanvas(w, h).getContext('2d', { willReadFrequently: true });
   const cache = new Map(), out = []; let slice = performance.now();
   for (let i = 0; i < g.src.length; i++){
