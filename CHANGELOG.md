@@ -4,6 +4,10 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
+## 0.99.46 — 2026/11/19
+
+- Effect editor: switching to a style that has fewer settings (Glitch › Blocks to Sort, with the Size LFO open) no longer leaves the previous style's second setting showing; the LFO view closes when its slider isn't in the new style.
+
 ## 0.99.44 — 2026/11/16
 
 Memory: a set's frames take a quarter or less.

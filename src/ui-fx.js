@@ -429,8 +429,8 @@ function fxModOpen(k){
   fxModK = fxModLast = k; syncFxMod();
 }
 function syncFxMod(){
-  const X = fxEd(), M = fxModK && X && X.mod && X.mod[fxModK];
-  if (fxModK && !M) fxModK = null;
+  const X = fxEd(); let M = fxModK && X && X.mod && X.mod[fxModK];
+  if (fxModK && (!M || !fxModPlain(fxModK) || $(FXM[fxModK].row).closest('.field').classList.contains('dimmed'))) fxModK = M = null;   // 0.99.46: the LFO view closes when the style in view has no such slider (it kept showing the previous style's Size)
   $('#fxEdit .envrow').classList.toggle('lfo', !!fxModK);
   $('#envLfo').classList.toggle('dimmed', !(X && fxModKeys().some(k => fxModPlain(k))));
   document.querySelectorAll('.lfoOff').forEach(b => b.classList.toggle('dimmed', !(X && X.mod && Object.values(X.mod).some(m => m && m.on))));   // 0.99.27: all of this effect's LFOs off at once   // (0.99.6: greyed where no setting can have an LFO)
