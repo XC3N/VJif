@@ -498,6 +498,7 @@ ${FX_GLSL}
         an = mirK > 0.5 ? abs(an - seg * 0.5) : an;   // (0.99.21: Mirror off: the same wedge repeated all round, not flipped)
         return vec2(cos(an), sin(an)) * r / a + 0.5;
       }
+      vec2 kf(vec2 p){ return mirror > 0.001 ? fold(p) : p; }   // 0.99.45: Mirror / Kaleido for the extra reads Glitch and Codec make (they read the unfolded frame, so Codec wiped the fold out)
       float bayer2(vec2 a){ a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }
       float bayer4(vec2 a){ return bayer2(0.5 * a) * 0.25 + bayer2(a); }
       ${PALFIT_GLSL}
@@ -737,7 +738,7 @@ if (glitch > 0.001 && HAS(glS, S_glitch_corrupt)){ float gq = min(1.0, glitch * 
             // the motion: the live picture's own (one step of optical flow per block, as Keyframe finds it), amplified, plus a slow field that drifts the same way over
             // neighbouring blocks (an object's motion, not noise); whole pixels per frame like a codec's vectors, so the copy stays sharp and blocks step against each other
             vec2 cc = (cell + 0.5) * bs / res, e1 = vec2(bs / res.x, 0.0), e2 = vec2(0.0, bs / res.y); vec3 L3 = vec3(0.299, 0.587, 0.114);
-            float pl = dot(texture2D(prev, vec2(cc.x, 1.0 - cc.y)).rgb, L3), cl = dot(look(samp(geo(cc), 0.0).rgb), L3);
+            float pl = dot(texture2D(prev, vec2(cc.x, 1.0 - cc.y)).rgb, L3), cl = dot(look(samp(geo(kf(cc)), 0.0).rgb), L3);
             vec2 g = vec2(dot(texture2D(prev, vec2(cc.x + e1.x, 1.0 - cc.y)).rgb - texture2D(prev, vec2(cc.x - e1.x, 1.0 - cc.y)).rgb, L3), dot(texture2D(prev, vec2(cc.x, 1.0 - cc.y - e2.y)).rgb - texture2D(prev, vec2(cc.x, 1.0 - cc.y + e2.y)).rgb, L3)) * 0.5;
             vec2 flow = clamp((pl - cl) * g / (dot(g, g) + 0.004), -1.0, 1.0) * bs;   // output px per frame
             vec2 big = cell / 6.0, i0 = floor(big), fr = smoothstep(0.0, 1.0, fract(big));
@@ -748,12 +749,12 @@ if (glitch > 0.001 && HAS(glS, S_glitch_corrupt)){ float gq = min(1.0, glitch * 
             vec4 pv = texture2D(prev, vec2(uv.x + mv.x, 1.0 - uv.y - mv.y)); float has = step(0.02, pv.a) * step(0.06, h2(cell * 1.3 + gseed + 9.1));   // (nothing drawn there yet: the picture; and each Rate about one block in 16 decodes right again, so the mosh doesn't wear down to flat smears, 0.90)
             c = mix(c, pv.rgb, has); al = mix(al, pv.a, has);
           } else if (r < gq * 0.3){                // broken: the detail kept but coarse (a few luma steps), the colour taken from the block's centre and thrown off (green / pink), a stray cosine pattern on it
-            vec2 ctr = (cell + 0.5) * bs / res; vec3 b = look(samp(geo(ctr), 0.0).rgb);   // (0.90: it was one flat colour per block, and the mosh kept copying those, so the picture went flat)
+            vec2 ctr = (cell + 0.5) * bs / res; vec3 b = look(samp(geo(kf(ctr)), 0.0).rgb);   // (0.90: it was one flat colour per block, and the mosh kept copying those, so the picture went flat)
             float yb = dot(b, vec3(0.299, 0.587, 0.114)), y = dot(c, vec3(0.299, 0.587, 0.114)), u2 = (b.b - yb) * 0.565, v2 = (b.r - yb) * 0.713;
             y = yb + floor((y - yb) / 0.08 + 0.5) * 0.08;
             y += cos(f.x * 3.14159 * floor(1.0 + h2(cell + 7.7) * 3.0)) * cos(f.y * 3.14159 * floor(1.0 + h2(cell + 5.3) * 3.0)) * 0.06;
             u2 += (h2(run + gseed + 1.9) - 0.5) * 0.35; v2 += (h2(run + gseed + 4.4) - 0.5) * 0.35;
-            c = vec3(y + 1.403 * v2, y - 0.344 * u2 - 0.714 * v2, y + 1.770 * u2); al = max(al, samp(geo(ctr), 0.0).a);
+            c = vec3(y + 1.403 * v2, y - 0.344 * u2 - 0.714 * v2, y + 1.770 * u2); al = max(al, samp(geo(kf(ctr)), 0.0).a);
           }
         }
 #endif
@@ -762,9 +763,9 @@ if (glitch > 0.001 && HAS(glS, S_glitch_corrupt)){ float gq = min(1.0, glitch * 
 #ifdef FX_CODEC
 if (codec > 0.001 && HAS(cdS, S_codec_crunch)){ float gq = min(1.0, codec * cdA[int(S_codec_crunch)]);   // crunch (a starved bit rate): per block, the detail in a few luma steps around the block's mean, the colour from its centre only
           float bs = max(cdSz, 3.0); vec2 cell = floor(uv * res / bs), cc = (cell + 0.5) * bs / res; vec3 L3 = vec3(0.299, 0.587, 0.114);
-          vec3 b = look(samp(geo(cc), 0.0).rgb); float ya = dot(b, L3), y = dot(c, L3), q = mix(0.03, 0.16, gq);
+          vec3 b = look(samp(geo(kf(cc)), 0.0).rgb); float ya = dot(b, L3), y = dot(c, L3), q = mix(0.03, 0.16, gq);
           y = ya + floor((y - ya) / q + 0.5) * q;      // the detail stays, in a few steps (unlike Pixel, where a block is one flat colour)
-          vec2 cc2 = (floor(uv * res / (bs * 2.0)) + 0.5) * bs * 2.0 / res; vec3 b2 = look(samp(geo(cc2), 0.0).rgb); float y2 = dot(b2, L3);   // the colour from blocks twice the size, so it bleeds across edges
+          vec2 cc2 = (floor(uv * res / (bs * 2.0)) + 0.5) * bs * 2.0 / res; vec3 b2 = look(samp(geo(kf(cc2)), 0.0).rgb); float y2 = dot(b2, L3);   // the colour from blocks twice the size, so it bleeds across edges
           float u2 = (b2.b - y2) * 0.565, v2 = (b2.r - y2) * 0.713;
           c = mix(c, vec3(y + 1.403 * v2, y - 0.344 * u2 - 0.714 * v2, y + 1.770 * u2), min(1.0, gq * 1.5));
         }
@@ -774,8 +775,8 @@ if (codec > 0.001 && HAS(cdS, S_codec_crunch)){ float gq = min(1.0, codec * cdA[
 #ifdef FX_CODEC
 if (codec > 0.001 && HAS(cdS, S_codec_mblock)){ float gq = min(1.0, codec * cdA[int(S_codec_mblock)]);   // macroblock (0.99.5): each block keeps its average and one slope (a DC and the first AC terms), bilinear inside the block, so the grid shows at its edges
           float bs = max(cdSz * 0.5, 4.0); vec2 px = uv * res, cell = floor(px / bs), f = fract(px / bs);
-          vec3 s00 = samp(geo((cell + vec2(0.25, 0.25)) * bs / res), 0.0).rgb, s10 = samp(geo((cell + vec2(0.75, 0.25)) * bs / res), 0.0).rgb;
-          vec3 s01 = samp(geo((cell + vec2(0.25, 0.75)) * bs / res), 0.0).rgb, s11 = samp(geo((cell + vec2(0.75, 0.75)) * bs / res), 0.0).rgb;
+          vec3 s00 = samp(geo(kf((cell + vec2(0.25, 0.25)) * bs / res)), 0.0).rgb, s10 = samp(geo(kf((cell + vec2(0.75, 0.25)) * bs / res)), 0.0).rgb;
+          vec3 s01 = samp(geo(kf((cell + vec2(0.25, 0.75)) * bs / res)), 0.0).rgb, s11 = samp(geo(kf((cell + vec2(0.75, 0.75)) * bs / res)), 0.0).rgb;
           vec2 w = clamp((f - 0.25) * 2.0, 0.0, 1.0); vec3 m = look(mix(mix(s00, s10, w.x), mix(s01, s11, w.x), w.y));   // (the colour effects once, on the mix: each call is a lot of shader)
           c = mix(c, m, min(1.0, gq * 1.4));
         }
@@ -785,7 +786,7 @@ if (codec > 0.001 && HAS(cdS, S_codec_mblock)){ float gq = min(1.0, codec * cdA[
 #ifdef FX_CODEC
 if (codec > 0.001 && HAS(cdS, S_codec_chroma)){ float gq = min(1.0, codec * cdA[int(S_codec_chroma)]);   // chroma subsampling (0.99.5): the brightness stays sharp, the colour comes from blocks 2 px (4:2:0) up to Size, offset a little right as it bleeds
           float bs = max(2.0, floor(mix(2.0, max(cdSz * 0.5, 2.0), gq) + 0.5)); vec2 cc = (floor(uv * res / bs) + 0.5) * bs / res - vec2(bs * 0.35 / res.x, 0.0);
-          vec3 b = look(samp(geo(cc), 0.0).rgb), L3 = vec3(0.299, 0.587, 0.114); float y = dot(c, L3), yb = dot(b, L3), u2 = (b.b - yb) * 0.565 * (1.0 + 0.25 * gq), v2 = (b.r - yb) * 0.713 * (1.0 + 0.25 * gq);
+          vec3 b = look(samp(geo(kf(cc)), 0.0).rgb), L3 = vec3(0.299, 0.587, 0.114); float y = dot(c, L3), yb = dot(b, L3), u2 = (b.b - yb) * 0.565 * (1.0 + 0.25 * gq), v2 = (b.r - yb) * 0.713 * (1.0 + 0.25 * gq);
           c = vec3(y + 1.403 * v2, y - 0.344 * u2 - 0.714 * v2, y + 1.770 * u2);
         }
 #endif
@@ -793,8 +794,8 @@ if (codec > 0.001 && HAS(cdS, S_codec_chroma)){ float gq = min(1.0, codec * cdA[
         
 #ifdef FX_CODEC
 if (codec > 0.001 && HAS(cdS, S_codec_ring)){ float gq = min(1.0, codec * cdA[int(S_codec_ring)]);   // ringing (0.99.5): over-sharpened edges (halos on both sides) and mosquito noise near them, on the 8 px block grid
-          vec2 o = max(2.0, res.y / 360.0) / res; vec3 n = samp(geo(uv + vec2(o.x, 0.0)), 0.0).rgb + samp(geo(uv - vec2(o.x, 0.0)), 0.0).rgb + samp(geo(uv + vec2(0.0, o.y)), 0.0).rgb + samp(geo(uv - vec2(0.0, o.y)), 0.0).rgb;   // (the picture's own edges, before the colour effects: cheaper)
-          vec3 lap = samp(geo(uv), 0.0).rgb - n * 0.25; float edge = clamp(length(lap) * 4.0, 0.0, 1.0);
+          vec2 o = max(2.0, res.y / 360.0) / res; vec3 n = samp(geo(kf(uv + vec2(o.x, 0.0))), 0.0).rgb + samp(geo(kf(uv - vec2(o.x, 0.0))), 0.0).rgb + samp(geo(kf(uv + vec2(0.0, o.y))), 0.0).rgb + samp(geo(kf(uv - vec2(0.0, o.y))), 0.0).rgb;   // (the picture's own edges, before the colour effects: cheaper)
+          vec3 lap = samp(geo(kf(uv)), 0.0).rgb - n * 0.25; float edge = clamp(length(lap) * 4.0, 0.0, 1.0);
           c += lap * 3.0 * gq;
           vec2 blk = floor(gl_FragCoord.xy / 8.0); c += (h2(floor(gl_FragCoord.xy / max(1.0, floor(res.y / 540.0))) + blk * 3.1) - 0.5) * 0.35 * gq * edge;
         }

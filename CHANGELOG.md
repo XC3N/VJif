@@ -4,6 +4,12 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
+## 0.99.45 — 2026/11/19
+
+Codec no longer wipes out Kaleido.
+
+- Codec's styles (Crunch, Macroblock, Chroma, Ringing) and Glitch's moshed and broken blocks read the picture again for their own work, and they read the unfolded frame, so with Mirror › Kaleido (or any Mirror style) on they pulled the original picture back over the fold. They now read it through the same fold, so the two stack.
+
 ## 0.99.44 — 2026/11/16
 
 Memory: a set's frames take a quarter or less.
