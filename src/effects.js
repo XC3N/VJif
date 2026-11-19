@@ -617,7 +617,7 @@ if (glitch > 0.001 && HAS(glS, S_glitch_sort)){ float gq = min(1.0, glitch * glA
         vec3 c = c4.rgb; float al = c4.a;
         if (poster > 0.001){
           if (IS(posterS, S_poster_bands)){ float lv = mix(24.0, 2.0, poster); c = floor(c * lv + 0.5) / lv; }
-          else { vec2 t = 1.5 / res, q = geo(p); vec3 w = vec3(0.333);
+          else { vec2 t = 1.5 / res, q = geo(kf(p)); vec3 w = vec3(0.333);
             float e = length(vec2(dot(raw(q + vec2(t.x, 0.0)), w) - dot(raw(q - vec2(t.x, 0.0)), w), dot(raw(q + vec2(0.0, t.y)), w) - dot(raw(q - vec2(0.0, t.y)), w))) * 4.0;
             vec3 neon = c / max(max(c.r, max(c.g, c.b)), 0.15) * smoothstep(0.05, 0.5, e);
             c = mix(c, neon, poster); }
@@ -625,7 +625,7 @@ if (glitch > 0.001 && HAS(glS, S_glitch_sort)){ float gq = min(1.0, glitch * glA
         // the picture's own look (mono, colour, palette) comes before the screen it's shown on (CRT): a palette or mono
         // scene still gets VHS noise, scanlines and phosphor glow on top
         if (split > 0.001 && colr > 0.001){   // colour split: each channel is taken from its own (shifted) picture
-          vec2 q = geo(p), o = vec2(split, 0.0);                  // after the look, so a palette / mono picture splits into its own colours
+          vec2 q = geo(kf(p)), o = vec2(split, 0.0);                  // after the look, so a palette / mono picture splits into its own colours
           vec3 lr = look(raw(q + o)), lb = look(raw(q - o)); c = look(c); c = vec3(lr.r, c.g, lb.b);   // (instead of the split's fringes being snapped back)
         } else c = look(c);
         
@@ -639,7 +639,7 @@ if (rgb > 0.001 && HAS(rgbS, S_rgb_scan)){ float rq = min(1.0, rgb * rgA[int(S_r
         
 #ifdef FX_RGB
 if (rgb > 0.001 && HAS(rgbS, S_rgb_phos)){ float rq = min(1.0, rgb * rgA[int(S_rgb_phos)]); // phosphor: bright parts bloom and linger
-          vec2 q = geo(p), t = vec2(5.0) / res; vec3 bl = vec3(0.0);
+          vec2 q = geo(kf(p)), t = vec2(5.0) / res; vec3 bl = vec3(0.0);
           for (int i = 0; i < 8; i++){ float an = float(i) * 0.785398; bl += raw(q + vec2(cos(an), sin(an)) * t * 1.6) + raw(q + vec2(cos(an), sin(an)) * t * 3.4); }
           bl = look(bl / 16.0); c += max(bl - 0.35, 0.0) * 1.6 * rq;
           vec4 pv = texture2D(prev, vec2(uv.x, 1.0 - uv.y)); c = max(c, pv.rgb * 0.82 * rq); }
@@ -665,7 +665,7 @@ if (rgb > 0.001 && HAS(rgbS, S_rgb_crypt)) c = mix(c, vec3(dot(c, vec3(0.299, 0.
         
 #ifdef FX_RGB
 if (rgb > 0.001 && HAS(rgbS, S_rgb_paytv)){ float rq = min(1.0, rgb * rgA[int(S_rgb_paytv)]); // pay-TV picture: a smeared echo, the colour decoded wrong (hue turned round, oversaturated), now and then a negative field
-          vec3 gh = look(raw(geo(vec2(fract(p.x - 0.022), p.y))));
+          vec3 gh = look(raw(geo(kf(vec2(fract(p.x - 0.022), p.y)))));
           vec3 d = mix(c, gh, 0.38);
           d = clamp(hueRot(d, 3.14159), 0.0, 1.0); float l = dot(d, vec3(0.299, 0.587, 0.114)); d = clamp(mix(vec3(l), d, 1.7), 0.0, 1.0);
           if (h1(floor(time * 3.0) + 0.5) < 0.25 * payNeg) d = 1.0 - d;   // (Invert off: no negative field, 0.99.16)
@@ -681,7 +681,7 @@ if (rgb > 0.001 && HAS(rgbS, S_rgb_paytv)){ float rq = min(1.0, rgb * rgA[int(S_
 if (rgb > 0.001 && HAS(rgbS, S_rgb_vhs)){ float rq = min(1.0, rgb * rgA[int(S_rgb_vhs)]); // VHS picture: washed colour, scanlines, noise; with Wear: colour bleeding right, dropouts
           float w = rq * smoothstep(0.04, 0.3, rq), fr = floor(time * 30.0), ln = floor(uv.y * res.y / 2.0);
           if (rq > 0.001){                           // tape keeps colour at a fraction of the picture's sharpness: the colour smears to the right of the shapes
-            vec2 q = geo(p), px1 = vec2((1.5 + 2.0 * rq) / res.x, 0.0);         // softer as the tape wears
+            vec2 q = geo(kf(p)), px1 = vec2((1.5 + 2.0 * rq) / res.x, 0.0);         // softer as the tape wears
             vec3 lu = (look(raw(q - px1)) + c * 2.0 + look(raw(q + px1))) / 4.0;   // (the neighbours with the picture's look too: a palette doesn't show its original colours through)                // tape's soft picture: brightness a little blurred sideways…
             float kb = min(1.0, rq * 20.0);              // the tape's softness is there at any Wear (full from 5 %): Wear adds the faults
             c = mix(c, lu + (c - lu) * 0.6, 0.7 * kb);                             // …with a faint edge ring (the sharpening VCRs added)
@@ -719,7 +719,7 @@ if (rgb > 0.001 && HAS(rgbS, S_rgb_vhs)){ float rq = min(1.0, rgb * rgA[int(S_rg
 if (glitch > 0.001 && HAS(glS, S_glitch_keyfr)){ float gq = min(1.0, glitch * glA[int(S_glitch_keyfr)]);   // keyframe lost: the picture as it was (the last frame out) is moved along the live picture's motion,
           // one motion vector per block, found by comparing the two around the block's centre (one step of optical flow): the old picture takes the new one's movement and smears
           float bs = max(glSz * 0.5, 4.0); vec2 cell = floor(uv * res / bs), cc = (cell + 0.5) * bs / res, e1 = vec2(bs / res.x, 0.0), e2 = vec2(0.0, bs / res.y); vec3 L3 = vec3(0.299, 0.587, 0.114);
-          float pl = dot(texture2D(prev, vec2(cc.x, 1.0 - cc.y)).rgb, L3), cl = dot(look(samp(geo(cc), 0.0).rgb), L3);
+          float pl = dot(texture2D(prev, vec2(cc.x, 1.0 - cc.y)).rgb, L3), cl = dot(look(samp(geo(kf(cc)), 0.0).rgb), L3);
           vec2 g = vec2(dot(texture2D(prev, vec2(cc.x + e1.x, 1.0 - cc.y)).rgb - texture2D(prev, vec2(cc.x - e1.x, 1.0 - cc.y)).rgb, L3), dot(texture2D(prev, vec2(cc.x, 1.0 - cc.y - e2.y)).rgb - texture2D(prev, vec2(cc.x, 1.0 - cc.y + e2.y)).rgb, L3)) * 0.5;
           vec2 v = clamp((pl - cl) * g / (dot(g, g) + 0.004), -0.6, 0.6) * vec2(e1.x, e2.y) * gq;   // (in blocks, at most 0.6 of one per frame)
           vec4 pv = texture2D(prev, vec2(uv.x - v.x, 1.0 - uv.y + v.y)); float has = step(0.02, pv.a);
@@ -802,7 +802,7 @@ if (codec > 0.001 && HAS(cdS, S_codec_ring)){ float gq = min(1.0, codec * cdA[in
 #endif
 
         c = mix(c, vec3(IS(strobeS, S_strobe_white) ? 1.0 : 0.0), strobe); if (IS(strobeS, S_strobe_white) && keepA < 0.5) al = mix(al, 1.0, strobe);
-        if (rays > 0.001){ vec2 q = geo(p); vec3 acc = vec3(0.0); float w = 1.0, ws = 0.0, j0 = h2(gl_FragCoord.xy + fract(time) * 61.0);   // Strobe › Rays (0.99.32): light from the bright parts streams out from the middle (samples marched toward the centre)
+        if (rays > 0.001){ vec2 q = geo(kf(p)); vec3 acc = vec3(0.0); float w = 1.0, ws = 0.0, j0 = h2(gl_FragCoord.xy + fract(time) * 61.0);   // Strobe › Rays (0.99.32): light from the bright parts streams out from the middle (samples marched toward the centre)
           for (int i = 0; i < 24; i++){ vec2 sq = mix(q, vec2(0.5), (float(i) + j0) / 24.0 * 0.6); acc += max(raw(sq) - 0.6, 0.0) * w; ws += w; w *= 0.94; }   // (a random start per pixel: no steps in the rays)
           vec3 ry = acc / ws * 3.0 * rays; c += ry; if (keepA < 0.5) al = max(al, min(1.0, dot(ry, vec3(0.333)))); }
         if (fb > 0.001){                              // feedback: blend with the previous output (stored upside down)

@@ -9,6 +9,8 @@ The version shows in the About panel (click the logo). What still needs testing 
 Codec no longer wipes out Kaleido.
 
 - Codec's styles (Crunch, Macroblock, Chroma, Ringing) and Glitch's moshed and broken blocks read the picture again for their own work, and they read the unfolded frame, so with Mirror › Kaleido (or any Mirror style) on they pulled the original picture back over the fold. They now read it through the same fold, so the two stack.
+- The same for the other effects that read the picture again: Poster › Edges, Colour split, Strobe › Rays, Glitch › Keyframe, and CRT's Phosphor, Pay-TV and VHS. With Mirror off nothing changes.
+- Not changed: Glitch › Sort still works before the fold, so a full-strength Mirror hides it.
 
 ## 0.99.44 — 2026/11/16
 
