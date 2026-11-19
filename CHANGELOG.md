@@ -12,6 +12,14 @@ Loop fade.
 - Nothing extra is stored: the dissolve draws two frames that are already there, only while it runs (Free, Fit and Step all work). It is for Forward only (Ping-pong already turns round smoothly; the slider dims for Reverse and Ping-pong). With effects on the GIF, both frames go through them.
 - Saved with the GIF in sets, copies and undo.
 
+## 0.99.46 — 2026/11/19
+
+Codec no longer wipes out Kaleido.
+
+- Codec's styles (Crunch, Macroblock, Chroma, Ringing) and Glitch's moshed and broken blocks read the picture again for their own work, and they read the unfolded frame, so with Mirror › Kaleido (or any Mirror style) on they pulled the original picture back over the fold. They now read it through the same fold, so the two stack.
+- The same for the other effects that read the picture again: Poster › Edges, Colour split, Strobe › Rays, Glitch › Keyframe, and CRT's Phosphor, Pay-TV and VHS. With Mirror off nothing changes.
+- Not changed: Glitch › Sort still works before the fold, so a full-strength Mirror hides it.
+
 ## 0.99.45 — 2026/11/19
 
 - Scenes: when the strip shows a bank other than the one holding the live scene (the one on the output, while Prep is on), that bank's 1–4 button lights up in the Signal colour with a small LED dot, so you can find your way back. Nothing moves.

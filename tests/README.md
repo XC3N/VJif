@@ -52,6 +52,7 @@ python3 tests/run_all.py golden crt_stack -v   # some tests, with their output
 | rec_sound | A short MP4 take with a test tone: the sound is one unbroken stream, as long as the picture (also under a stall). |
 | scene_drop | GIFs dropped on a scene tile go to that scene's first empty pads. |
 | fx_local | FX Local: each scene keeps its own latched effects; the layer pips on effect tiles. |
+| kal_codec | Codec stacked on Mirror › Kaleido keeps the fold (it used to pull the unfolded picture back). |
 | scene_tools | Ctrl+drag a scene onto the empty one you're on; Prep goes live on the downbeat; Channel number modes and the Options row. |
 | ui_bits | F-keys don't move the effect editor; mode by key; envelope reset; Rec ▾; drop shadow and crop + tile draw. |
 | feature_bits | 0.68–0.73: layer solo, frames with hidden / covered windows, BRB linked to Prep, count-in, transition regroup and options, border deselect, Ctrl hush, folding sections, Swap › Pick, LFO gap, mask modes, shadow crop. |
