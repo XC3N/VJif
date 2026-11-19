@@ -210,7 +210,7 @@ release. Want to help test? Pick an unticked line and open an issue with what yo
 - [x] {vc52kikti0ygo0pkl6g0} **Launchpad arrows** (0.95) — Settings › MIDI › Launchpad layout again, then on the Launchpad: ▲ / ▼ step the scene banks (wrapping), ◀ / ▶ show scene pads bank 1 / 2 (the one on show is lit).
 - [x] {jhjtz84jxa9smlech8kn} **Effect preview off the output** (0.95) — Output window open (or recording): drag an effect slider with Preview on: the effect plays in the preview only; the output window stays clean.
 - [x] {wwuuyr4dc3r7392qm6qm} **Scene copy keeps masks** (0.95) — Paint a mask on a layer, Ctrl-drag the scene onto another tile: the copy has the mask (and the layer lock / transition).
-- [x] {a5hjsigm8hsc3y6shxti} **Bypass FX vs All** (0.95) — A GIF with Bypass FX on: an effect on its layer leaves it alone, an effect on All changes it too.
+- [x] {a5hjsigm8hsc3y6shxti} **Bypass FX vs All** (0.95) — A GIF with Bypass FX on: an effect on its layer leaves it alone, and (0.99.45) so does an effect on All. Freeze still holds it.
 - [x] {2wpq2k5n7szzuiozx62n} **Flip LFOs** (0.95) — GIF › Auto: Flip H / Flip V (6 per row now): with Square, the GIF flips every half cycle; Min / Max move the halfway point.
 - [x] {qbvl0b9reg2lg7amaq6f} **Display bottom** (0.95) — GIF › Display ends with Opacity (moved from Transform), then Smooth scaling and Bypass FX on one line.
 - [x] {em3d1qhtbbqyxhk2deqz} **Reset / Clear switch off** (0.95) — Colour Adjust › Reset and Swap colours › Clear also switch their section off (like Key › Clear); Shadow has a Reset (defaults, off).
