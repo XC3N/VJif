@@ -4,13 +4,18 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
-## 0.99.47 — 2026/11/19
+## 0.99.48 — 2026/11/19
 
 Loop fade.
 
 - GIF › Loop has a Loop fade slider (off, then 5 to 50% of the loop): the end of a forward loop dissolves into its start, so a GIF with a hard cut at the wrap loops smoothly. The first stretch of the loop shows the frames from the end fading out under the frames from the start fading in; the loop is that much shorter (in Fit the remaining frames fill the loop length, in Step the cycle has that many frames fewer, and the CYCLE line shows it).
 - Nothing extra is stored: the dissolve draws two frames that are already there, only while it runs (Free, Fit and Step all work). It is for Forward only (Ping-pong already turns round smoothly; the slider dims for Reverse and Ping-pong). With effects on the GIF, both frames go through them.
 - Saved with the GIF in sets, copies and undo.
+
+## 0.99.45 — 2026/11/19
+
+- Scenes: when the strip shows a bank other than the one holding the live scene (the one on the output, while Prep is on), that bank's 1–4 button lights up in the Signal colour with a small LED dot, so you can find your way back. Nothing moves.
+- Bypass FX GIFs are now untouched by the effects on All as well as their layer's effects (they were drawn under the All effects, so a Bypass FX GIF on Overlay still got them). Freeze holds them as before.
 
 ## 0.99.44 — 2026/11/16
 
