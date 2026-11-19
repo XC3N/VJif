@@ -219,7 +219,7 @@ function syncFxUI0(){
       $('#fxRateRow').title = alt.off ? 'Dither: not on this palette (64 grey steps are already smooth; the NES never dithered)' : alt.title(ai); $('#fxRateRow').classList.remove('dimmed'); $('#fxRateRow').classList.toggle('nodith', !!alt.off); }   // (0.99.13: not 'dimmed': that hides the row's whole content, the bit switch too)
     else { $('#fxRate').max = FX_RATES.length - 1; $('#fxRateRow').title = 'Rate: how fast it moves (beats)';
     const ri = optIdx(FX_RATES, C.rate); $('#fxRate').value = ri; $('#fxRate').nextElementSibling.textContent = FX_RATES[ri][1];
-    $('#fxRateRow').classList.toggle('dimmed', !d.rate || (!!d.rateFor && !styleParts(di, C.style || d.styles[0][0]).some(p => d.rateFor.includes(p)))); $('#fxRate').dataset.def = optIdx(FX_RATES, fxDefaults()[di].rate); }
+    $('#fxRateRow').classList.toggle('dimmed', !d.rate || (!!d.rateFor && !styleFocus(di, C.style || d.styles[0][0]).some(p => d.rateFor.includes(p)))); $('#fxRate').dataset.def = optIdx(FX_RATES, fxDefaults()[di].rate); }
     const za = sizeAlt(d, C.style || d.styles[0][0], C); $('#fxSizeRow label').textContent = za ? za.label : 'Size';
     $('#fxSizeSeg').hidden = !(za && (za.seg || za.side)); $('#fxSize').hidden = $('#fxSize').nextElementSibling.hidden = !!(za && za.seg);   // a few fixed choices: a switch instead of the slider
     $('#fxSizeSeg').classList.toggle('one', !!(za && (za.toggle || za.side))); $('#fxSizeRow').classList.toggle('onerow', !!(za && za.toggle)); $('#fxSizeRow').classList.toggle('siderow', !!(za && za.side));   // one toggle: its label right-aligned against it; siderow (0.99.27): a slider with a toggle beside it
@@ -231,7 +231,7 @@ function syncFxUI0(){
     else { $('#fxSize').max = FX_SIZES.length - 1; $('#fxSizeRow').title = 'Size: the pixel block size at full amount';
     const zi = optIdx(FX_SIZES, C.size || d.sizeDef || 64); $('#fxSize').value = zi; $('#fxSize').nextElementSibling.textContent = FX_SIZES[zi][1];
     $('#fxSize').dataset.def = optIdx(FX_SIZES, d.sizeDef || 64);
-    $('#fxSizeRow').classList.toggle('dimmed', !d.size || d.id === 'colour' || (!!d.sizeFor && !styleParts(di, C.style).some(p => d.sizeFor.includes(p)))); }
+    $('#fxSizeRow').classList.toggle('dimmed', !d.size || d.id === 'colour' || (!!d.sizeFor && !styleFocus(di, C.style).some(p => d.sizeFor.includes(p)))); }
   }
 }
 // effect names refit (full or short) when the window changes, and are measured again once the fonts are in

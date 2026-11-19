@@ -7,6 +7,7 @@ The version shows in the About panel (click the logo). What still needs testing 
 ## 0.99.46 — 2026/11/19
 
 - Effect editor: switching to a style that has fewer settings (Glitch › Blocks to Sort, with the Size LFO open) no longer leaves the previous style's second setting showing; the LFO view closes when its slider isn't in the new style.
+- CRT › Phosphor (and Split) in a stack with VHS no longer shows VHS's Dropouts slider; Rate and Size grey out by the style in focus, not by any style in the stack.
 - Glitch, Codec and CRT (scene and GIF effects): taking a style out of a stack while others stay on now puts the last remaining one in focus, instead of leaving nothing selected with the old settings still showing.
 
 ## 0.99.44 — 2026/11/16
