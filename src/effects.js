@@ -354,7 +354,7 @@ function gfxU(g, b){
 }
 // 0.99.27: an effect's other settings (beside Amount, Rate, Style, Size): key, default, and for the ones an LFO can drive, the list
 // of steps it moves through. One table for the effect keys, the presets and a GIF's own effects.
-const FX_XK = [['pal', 0], ['kz', 1, () => FX_KZ], ['fbk', 0.7, () => FX_FBK], ['vdrop', 1, () => FX_DROP], ['pneg', 1], ['kmir', 1], ['kang', -1, () => FX_KANG], ['pfit', 0], ['dith', 0, () => FX_DITH], ['dpat', 0], ['ovs', 1], ['dots', 0], ['duo', 0, () => FX_DUO]];
+const FX_XK = [['pal', 0], ['kz', 1, () => FX_KZ], ['fbk', 0.7, () => FX_FBK], ['vdrop', 1, () => FX_DROP], ['pneg', 1], ['kmir', 1], ['kang', -1, () => FX_KANG], ['kcx', 0], ['kcy', 0], ['pfit', 0], ['dith', 0, () => FX_DITH], ['dpat', 0], ['ovs', 1], ['dots', 0], ['duo', 0, () => FX_DUO]];
 const fxXv = (C, k, def, L, b) => L && b !== null ? modAlt(C, k, b, L(), C[k] ?? def) : (C[k] ?? def);   // (b null: no LFO, the setting as set)
 function fxMix(b, X = fxLive()){
   const mk = () => ({ lv: FX_DEFS.map(() => 0), env: FX_DEFS.map(() => 0), amt: X.cfg.map(c => modAmt(c, b)), rate: X.cfg.map(c => modRate(c, b)), style: X.cfg.map(c => c.style), size: X.cfg.map((c, i) => modSize(c, b, FX_DEFS[i].sizeDef || 64)), pamt: X.cfg.map(c => c.pamt || null), abase: X.cfg.map(c => c.amt), ...Object.fromEntries(FX_XK.map(([k, def, L]) => [k, X.cfg.map(c => fxXv(c, k, def, L, b))])) });
@@ -372,7 +372,7 @@ function fxMix(b, X = fxLive()){
 }
 // one target's shader settings; null when nothing plays on it
 const FX_U_IDX = ['colour', 'strobe', 'poster', 'zoom', 'shake', 'wobble', 'mirror', 'glitch', 'rgb', 'pixel', 'feedback', 'codec'].map(k => FXI[k]);
-function fxU(b, { lv, env, amt, rate, style, size, pal, kz, fbk, vdrop, pneg, kmir, kang, pfit, dith, dpat, dots, ovs, duo, pamt, abase }){
+function fxU(b, { lv, env, amt, rate, style, size, pal, kz, fbk, vdrop, pneg, kmir, kang, kcx, kcy, pfit, dith, dpat, dots, ovs, duo, pamt, abase }){
   if (!lv.some(v => v > 0.001)) return null;
   const S = i => styleIdx(i, style[i]), nm = i => FX_DEFS[i].styles[S(i)][0], st = i => Math.floor(b / rate[i]);
   const [CO, ST, PO, ZO, SH, WO, MI, GL, CR, PX, FB, CD] = FX_U_IDX, dg = nm(ST) === 'degauss', ry = nm(ST) === 'rays';
@@ -382,7 +382,7 @@ function fxU(b, { lv, env, amt, rate, style, size, pal, kz, fbk, vdrop, pneg, km
     wob: lv[WO], wobS: S(WO), wobPh: b / rate[WO] * Math.PI * 2,
     mirror: nm(MI) === 'kal' ? env[MI] : lv[MI], mirS: S(MI), mirN: kalSlices(amt[MI]),   // kaleido: Amount = how many slices
     glitch: lv[GL], glS: styleMask(GL, style[GL]), gseed: st(GL) * 7.13 % 100, glSz: size[GL], rgb: lv[CR], rgbS: styleMask(CR, style[CR]), crtSz: size[CR], codec: lv[CD], cdS: styleMask(CD, style[CD]), cseed: st(CD) * 7.13 % 100, cdSz: size[CD],
-    pixel: lv[PX], pixS: S(PX), pixSize: size[PX], fb: lv[FB], fbS: S(FB), time: performance.now() / 1000 % 1000, palI: pal ? pal[CO] : 0, palD: dith && !palGB(pal ? pal[CO] : 0) && !palNoDith(pal ? pal[CO] : 0) ? dith[CO] : 0, palP: palGB(pal ? pal[CO] : 0) ? 1 : dpat ? dpat[CO] : 0, palLum: palGB(pal ? pal[CO] : 0) ? 1 : 0, palDot: dots && dots[CO] && lv[CO] > 0.001 && nm(CO) === 'pal' && palGB(pal ? pal[CO] : 0) ? lcdDot() * (dots[CO] >= 2 ? 1 : -1) : 0, mirZ: kz ? kz[MI] : 1, fbK: fbk ? fbk[FB] : 0.7, vDrop: vdrop ? vdrop[CR] : 1, payNeg: pneg ? pneg[CR] : 1, mirK: kmir ? kmir[MI] : 1, mirA: kang ? kang[MI] : -1, duoI: duo ? duo[CO] : 0, palFit: pfit && pfit[CO] ? 1 : 0, palYlo: (FX_PALS[pal ? pal[CO] : 0] || FX_PALS[0]).ylo, palYhi: (FX_PALS[pal ? pal[CO] : 0] || FX_PALS[0]).yhi, beat: b % 100000 };
+    pixel: lv[PX], pixS: S(PX), pixSize: size[PX], fb: lv[FB], fbS: S(FB), time: performance.now() / 1000 % 1000, palI: pal ? pal[CO] : 0, palD: dith && !palGB(pal ? pal[CO] : 0) && !palNoDith(pal ? pal[CO] : 0) ? dith[CO] : 0, palP: palGB(pal ? pal[CO] : 0) ? 1 : dpat ? dpat[CO] : 0, palLum: palGB(pal ? pal[CO] : 0) ? 1 : 0, palDot: dots && dots[CO] && lv[CO] > 0.001 && nm(CO) === 'pal' && palGB(pal ? pal[CO] : 0) ? lcdDot() * (dots[CO] >= 2 ? 1 : -1) : 0, mirZ: kz ? kz[MI] : 1, fbK: fbk ? fbk[FB] : 0.7, vDrop: vdrop ? vdrop[CR] : 1, payNeg: pneg ? pneg[CR] : 1, mirK: kmir ? kmir[MI] : 1, mirA: kang ? kang[MI] : -1, mirX: kcx ? kcx[MI] : 0, mirY: kcy ? kcy[MI] : 0, duoI: duo ? duo[CO] : 0, palFit: pfit && pfit[CO] ? 1 : 0, palYlo: (FX_PALS[pal ? pal[CO] : 0] || FX_PALS[0]).ylo, palYhi: (FX_PALS[pal ? pal[CO] : 0] || FX_PALS[0]).yhi, beat: b % 100000 };
   if (U.colrS === FXS.colour.pal) U.colr = env[CO];   // a palette follows the envelope, not Amount (Amount picks the palette): Attack / Release dissolve it in and out pixel by pixel
   const jit = nm(SH) === 'jitter', sk = Math.floor(b / (rate[SH] * (jit ? 0.5 : 1))), s = lv[SH] * (jit ? 0.35 : 1);
   U.shake = [(fxRand(sk) - 0.5) * 0.08 * s, (fxRand(sk + 0.37) - 0.5) * 0.08 * s, (fxRand(sk + 0.71) - 0.5) * 0.1 * s]; U.shakeZ = (ovs && ovs[SH] === 0 ? 0 : 0.22) * s; U.wobZ = (ovs && ovs[WO] === 0 ? 0 : (S(WO) === 0 ? 0.04 : 0.026)) * lv[WO];
@@ -445,7 +445,7 @@ function makePost(){
     const FXSRC = `precision highp float;
 ${FX_GLSL}
       uniform sampler2D tex, prev; uniform vec2 res; uniform float fbInit, time, beat;
-      uniform float colr, colrS, hue, strobe, strobeS, rays, poster, posterS, zoom, bulge, wob, wobS, wobPh, mirror, mirS, mirN, mirZ, mirK, mirA, keepA, duoI, palD, palLo, palHi, palYlo, palYhi, palP, palDot, palLum,
+      uniform float colr, colrS, hue, strobe, strobeS, rays, poster, posterS, zoom, bulge, wob, wobS, wobPh, mirror, mirS, mirN, mirZ, mirK, mirA, mirX, mirY, keepA, duoI, palD, palLo, palHi, palYlo, palYhi, palP, palDot, palLum,
                     glitch, glS, gseed, glSz, codec, cdS, cseed, cdSz, dgs, rgb, rgbS, crtSz, pixel, pixS, pixSize, fb, fbS, fbK, vDrop, payNeg, shakeZ, wobZ;
       uniform float glA[12], rgA[12], cdA[12];   // Glitch / CRT: each stacked style's own Amount, as a share of the effect's (0.92)
       uniform vec3 shake; uniform vec3 palBg; uniform float palN; uniform sampler2D plut; varying vec2 uv;
@@ -496,9 +496,9 @@ ${FX_GLSL}
         if (IS(mirS, S_mirror_lr)) return vec2(p.x < 0.5 ? p.x : 1.0 - p.x, p.y);
         if (IS(mirS, S_mirror_tb)) return vec2(p.x, p.y < 0.5 ? p.y : 1.0 - p.y);
         if (IS(mirS, S_mirror_quad)) return vec2(p.x < 0.5 ? p.x : 1.0 - p.x, p.y < 0.5 ? p.y : 1.0 - p.y);
-        vec2 a = A(), d = (p - 0.5) * a / max(mirZ, 1.0); float r = length(d), seg = 6.2831853 / max(mirN, 2.0), an = mod(atan(d.y, d.x) + (mirA < 0.0 ? time * 0.1 : mirA * 0.017453293), seg);
+        vec2 a = A(), c = vec2(0.5) + vec2(mirX, mirY), d = (p - c) * a / max(mirZ, 1.0); float r = length(d), seg = 6.2831853 / max(mirN, 2.0), an = mod(atan(d.y, d.x) + (mirA < 0.0 ? time * 0.1 : mirA * 0.017453293), seg);
         an = mirK > 0.5 ? abs(an - seg * 0.5) : an;   // (0.99.21: Mirror off: the same wedge repeated all round, not flipped)
-        return vec2(cos(an), sin(an)) * r / a + 0.5;
+        return vec2(cos(an), sin(an)) * r / a + c;   // (0.99.49: c is the kaleidoscope's centre, offset by Centre X / Y)
       }
       vec2 kf(vec2 p){ return mirror > 0.001 ? fold(p) : p; }   // 0.99.45: Mirror / Kaleido for the extra reads Glitch and Codec make (they read the unfolded frame, so Codec wiped the fold out)
       float bayer2(vec2 a){ a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }
@@ -919,7 +919,7 @@ if (codec > 0.001 && HAS(cdS, S_codec_ring)){ float gq = min(1.0, codec * cdA[in
     const slots = [];
     const slotOf = n => slots[n] || (slots[n] = { h: mkRT(), fbWas: false });
     const PX_NAMES = new Set(['crtSz', 'pixSize', 'glSz', 'cdSz']);   // (palDot is worked out in real pixels: lcdDot)   // sizes given in canvas pixels
-    const NAMES = ['colr', 'colrS', 'hue', 'strobe', 'strobeS', 'rays', 'poster', 'posterS', 'zoom', 'bulge', 'wob', 'wobS', 'wobPh', 'mirror', 'mirS', 'mirN', 'mirZ', 'mirK', 'mirA', 'keepA', 'duoI', 'palD', 'palLo', 'palHi', 'palYlo', 'palYhi', 'palP', 'palDot', 'palLum',
+    const NAMES = ['colr', 'colrS', 'hue', 'strobe', 'strobeS', 'rays', 'poster', 'posterS', 'zoom', 'bulge', 'wob', 'wobS', 'wobPh', 'mirror', 'mirS', 'mirN', 'mirZ', 'mirK', 'mirA', 'mirX', 'mirY', 'keepA', 'duoI', 'palD', 'palLo', 'palHi', 'palYlo', 'palYhi', 'palP', 'palDot', 'palLum',
                    'glitch', 'glS', 'gseed', 'glSz', 'codec', 'cdS', 'cseed', 'cdSz', 'dgs', 'rgb', 'rgbS', 'crtSz', 'pixel', 'pixS', 'pixSize', 'fb', 'fbS', 'fbK', 'vDrop', 'payNeg', 'shakeZ', 'wobZ', 'time', 'beat'];
     // each program has its own uniforms: `last` holds their current values (a uniform keeps its value until it's set again)
     let cur = fx[0];
