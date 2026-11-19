@@ -10,6 +10,14 @@ The version shows in the About panel (click the logo). What still needs testing 
 - CRT › Phosphor (and Split) in a stack with VHS no longer shows VHS's Dropouts slider; Rate and Size grey out by the style in focus, not by any style in the stack.
 - Glitch, Codec and CRT (scene and GIF effects): taking a style out of a stack while others stay on now puts the last remaining one in focus, instead of leaving nothing selected with the old settings still showing.
 
+## 0.99.46 — 2026/11/19
+
+Codec no longer wipes out Kaleido.
+
+- Codec's styles (Crunch, Macroblock, Chroma, Ringing) and Glitch's moshed and broken blocks read the picture again for their own work, and they read the unfolded frame, so with Mirror › Kaleido (or any Mirror style) on they pulled the original picture back over the fold. They now read it through the same fold, so the two stack.
+- The same for the other effects that read the picture again: Poster › Edges, Colour split, Strobe › Rays, Glitch › Keyframe, and CRT's Phosphor, Pay-TV and VHS. With Mirror off nothing changes.
+- Not changed: Glitch › Sort still works before the fold, so a full-strength Mirror hides it.
+
 ## 0.99.45 — 2026/11/19
 
 - Scenes: when the strip shows a bank other than the one holding the live scene (the one on the output, while Prep is on), that bank's 1–4 button lights up in the Signal colour with a small LED dot, so you can find your way back. Nothing moves.
