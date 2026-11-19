@@ -24,7 +24,7 @@
 
 // ---------- constants ----------
 // canvas size: set by the format (landscape for screens and projectors, vertical / square / 4:5 for social video)
-const APP_VERSION = '0.99.45';   // bump with each release and add it to CHANGELOG.md
+const APP_VERSION = '0.99.46';   // bump with each release and add it to CHANGELOG.md
 // the web fonts' stylesheet (Google Fonts) loads without holding the page: this resolves once it's in, failed, or after 4 s
 const fontsCss = new Promise(r => { const l = document.getElementById('webFonts'); if (!l || l._done) return r(); l.addEventListener('load', r); l.addEventListener('error', r); setTimeout(r, 4000); });
 const AB = new URLSearchParams(location.search);   // switches for comparing two ways on the same machine: ?lod=0, ?blit=high

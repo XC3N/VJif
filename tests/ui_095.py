@@ -1,5 +1,5 @@
 # 0.95: chips hide their GIF (right-click), scene export / import (.vjscene), Flip LFOs, Skew around 0, Launchpad arrows,
-# scene copies keep masks, Bypass FX under the effects on All, Reset / Clear switch off, the panel picture stays on frame 0
+# scene copies keep masks, Bypass FX above the effects on All (0.99.45), Reset / Clear switch off, the panel picture stays on frame 0
 import asyncio
 from playwright.async_api import async_playwright
 from _env import DIST, ARGS, FIX
