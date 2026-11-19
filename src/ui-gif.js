@@ -555,7 +555,7 @@ function buildGfx(){
   $('#gfxList').addEventListener('click', e => { const b = e.target.closest('[data-gst] button'); if (!b) return; const id = b.closest('[data-gst]').dataset.gst, i = FXI[id], v = b.dataset.v;
     const P0 = styleParts(i, (gfxX(id) || {}).style);
     if (FX_MULTI[id] && gfxOnNow(id) && P0.length > 1 && P0.includes(v) && gfxFocus[id] !== v){ gfxFocus[id] = v; syncGfxUI(curGif()); return; }   // 0.99.16: like the scene FX: a click on a lit style that isn't the one in focus selects it; the next click takes it out
-    edit(id, x => { if (!x.on){ x.on = true; if (!styleParts(i, x.style).includes(v)) x.style = v; } else x.style = styleToggle(i, x.style, v); delete soloWas[id]; gfxFocus[id] = styleParts(i, x.style).includes(v) ? v : undefined; }); });
+    edit(id, x => { if (!x.on){ x.on = true; if (!styleParts(i, x.style).includes(v)) x.style = v; } else x.style = styleToggle(i, x.style, v); delete soloWas[id]; const Q = styleParts(i, x.style); gfxFocus[id] = Q.includes(v) ? v : Q[Q.length - 1]; }); });
   $('#gfxList').addEventListener('contextmenu', e => { const b = e.target.closest('[data-gst] button'); if (!b) return; e.preventDefault(); const id = b.closest('[data-gst]').dataset.gst, i = FXI[id], v = b.dataset.v;
     edit(id, x => { x.on = true; if (!FX_MULTI[id]){ x.style = v; return; } const cur = styleNorm(i, x.style);
       if (cur === v && soloWas[id]){ x.style = soloWas[id]; delete soloWas[id]; } else { if (cur !== v) soloWas[id] = cur; x.style = v; } }); });
