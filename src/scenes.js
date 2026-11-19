@@ -105,6 +105,8 @@ function renderScenes(){
   const box = $('#scenes');
   if (!box.children.length) box.innerHTML = Array.from({ length: N_SCENES }, (_, i) => `<button class="scene" data-i="${i}" data-b="${Math.floor(i / SC_BANK)}" style="order:${(2 - Math.floor(i % SC_BANK / 3)) * 3 + i % 3}"><span class="k">${i % SC_BANK + 1}</span><span class="xdel" title="Empty this scene (Ctrl+Z brings it back)">×</span><span class="nm"></span><span class="n"></span></button>`).join('');   // laid out like the numpad
   box.dataset.bank = scBank;
+  const liveB = Math.floor((prep ? prep.scene : sceneIdx) / SC_BANK);   // the bank holding the scene on the output: its button is lit while another bank is on show (0.99.45)
+  document.querySelectorAll('#scBankSeg button').forEach(x => { const on = +x.dataset.v === liveB && liveB !== scBank; x.classList.toggle('live', on); x.title = on ? `Bank ${liveB + 1} holds the live scene` : ''; });
   [...box.children].forEach((b, i) => {
     if (Math.floor(i / SC_BANK) !== scBank && i !== sceneIdx) return;   // (another bank's tiles aren't on show: brought up to date when they are)
     const ld = sceneLoading.get(i); b.classList.toggle('loading', !!ld);
