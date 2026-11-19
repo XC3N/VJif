@@ -4,11 +4,16 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
-## 0.99.46 — 2026/11/19
+## 0.99.47 — 2026/11/19
 
 - Effect editor: switching to a style that has fewer settings (Glitch › Blocks to Sort, with the Size LFO open) no longer leaves the previous style's second setting showing; the LFO view closes when its slider isn't in the new style.
 - CRT › Phosphor (and Split) in a stack with VHS no longer shows VHS's Dropouts slider; Rate and Size grey out by the style in focus, not by any style in the stack.
 - Glitch, Codec and CRT (scene and GIF effects): taking a style out of a stack while others stay on now puts the last remaining one in focus, instead of leaving nothing selected with the old settings still showing.
+
+## 0.99.45 — 2026/11/19
+
+- Scenes: when the strip shows a bank other than the one holding the live scene (the one on the output, while Prep is on), that bank's 1–4 button lights up in the Signal colour with a small LED dot, so you can find your way back. Nothing moves.
+- Bypass FX GIFs are now untouched by the effects on All as well as their layer's effects (they were drawn under the All effects, so a Bypass FX GIF on Overlay still got them). Freeze holds them as before.
 
 ## 0.99.44 — 2026/11/16
 

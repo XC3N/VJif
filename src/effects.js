@@ -411,6 +411,7 @@ function blackLevel(now){ const x = BLACK_MS > 0 ? Math.min(1, (now - live.black
 function setBlack(on){ const now = performance.now(); live.black0 = blackLevel(now); live.blackOn = on; live.blackT = now; }
 live.black0 = 0; live.blackT = -1e9;
 const freezeCv = mkCanvas(), freezeCtx = freezeCv.getContext('2d');
+const freezeByCv = mkCanvas(), freezeByCtx = freezeByCv.getContext('2d');   // Freeze: the Bypass FX GIFs alone (they go on top after the effects, 0.99.45)
 function setFreeze(on){ if (on && !live.freeze){ live.freezeReq = true; redraw.all = true; } if (!on){ live.freeze = false; live.freezeReq = false; redraw.all = true; } updLiveTag(); }
 function updLiveTag(){ const t = $('#liveTag'); if (!t) return; const b = live.blackOn, f = live.freeze || live.freezeReq; t.textContent = b && f ? 'BLACK · FREEZE' : b ? 'BLACKOUT' : f ? 'FREEZE' : ''; t.hidden = !b && !f; }
 // Made by makePost(); if the graphics driver resets (a lost WebGL context), effects and the Luma transition pass the
@@ -1118,8 +1119,8 @@ function drawPvOnly(list, noFx){
   if (!pvCv || pvCv.width !== CW || pvCv.height !== CH){ pvCv = new OffscreenCanvas(CW, CH); }
   const x = pvCv.getContext('2d'), F = fxFrame(clock.beat);
   render(list, x, SLOT.PV_LAYERS, F.layers, zoomEOf(F.out));
-  if (noFx) drawBypass(noFx, list, x);
   if (F.out && post) post.run(F.out, pvCv, x, SLOT.PV_OUT);
+  if (noFx) drawBypass(noFx, list, x);               // (0.99.45: after the effects on All)
   pvBlit(pvCv);
 }
 function drawFrame(now){
@@ -1152,9 +1153,12 @@ function drawFrame(now){
       if (noFx) drawBypass(noFx, list, trB);
       composeTransition(trEase(tp, trans.cfg), trans.cfg);
     } else render(list, mctx, SLOT.LAYERS, LUs, zE);
-    if (noFx && !trans && !live.freeze) drawBypass(noFx, list, mctx);
-    if (live.freezeReq){ freezeCtx.drawImage(master, 0, 0); live.freeze = true; live.freezeReq = false; updLiveTag(); }   // the clean frame, before effects (0.99.6: with the Bypass FX GIFs: Freeze holds the whole picture)   // Bypass FX: over the layers and their effects, under the effects on All (0.95), under the layers above theirs (0.99.5)
+    // Bypass FX: over the layers and their effects and (0.99.45) over the effects on All too, under the layers above theirs (0.99.5)
+    if (live.freezeReq){ freezeCtx.drawImage(master, 0, 0);   // the clean frame, before effects; the Bypass FX GIFs apart (0.99.6: Freeze holds the whole picture)
+      freezeByCtx.setTransform(1, 0, 0, 1, 0, 0); freezeByCtx.clearRect(0, 0, CW, CH); if (noFx && !trans) drawBypass(noFx, list, freezeByCtx);
+      live.freeze = true; live.freezeReq = false; updLiveTag(); }
     if (fxU && !sideFx) post.run(fxU); else if (post && !sideFx) post.idle(SLOT.OUT);
+    if (!trans){ if (live.freeze){ mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.globalAlpha = 1; mctx.globalCompositeOperation = 'source-over'; mctx.drawImage(freezeByCv, 0, 0); } else if (noFx) drawBypass(noFx, list, mctx); }
     drawTrOverlay();
     if (bl > 0){ mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.globalCompositeOperation = 'source-over'; mctx.globalAlpha = bl; mctx.fillStyle = '#000'; mctx.fillRect(0, 0, CW, CH); mctx.globalAlpha = 1; }
     blitGen++; outBlit(master);
