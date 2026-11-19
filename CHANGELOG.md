@@ -12,6 +12,12 @@ Loop fade.
 - Nothing extra is stored: the dissolve draws two frames that are already there, only while it runs (Free, Fit and Step all work). It is for Forward only (Ping-pong already turns round smoothly; the slider dims for Reverse and Ping-pong). With effects on the GIF, both frames go through them.
 - Saved with the GIF in sets, copies and undo.
 
+## 0.99.47 — 2026/11/19
+
+- Effect editor: switching to a style that has fewer settings (Glitch › Blocks to Sort, with the Size LFO open) no longer leaves the previous style's second setting showing; the LFO view closes when its slider isn't in the new style.
+- CRT › Phosphor (and Split) in a stack with VHS no longer shows VHS's Dropouts slider; Rate and Size grey out by the style in focus, not by any style in the stack.
+- Glitch, Codec and CRT (scene and GIF effects): taking a style out of a stack while others stay on now puts the last remaining one in focus, instead of leaving nothing selected with the old settings still showing.
+
 ## 0.99.46 — 2026/11/19
 
 Codec no longer wipes out Kaleido.

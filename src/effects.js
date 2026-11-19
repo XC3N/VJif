@@ -183,7 +183,7 @@ function sizeAlt(d, style, C){
     icon: '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" style="display:block;margin:auto"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor" stroke="none"/></svg>',
     title: () => 'Invert: now and then the picture goes negative (off: never)' };
   if (f === 'scan' || f === 'crypt') return null;
-  if (f !== 'vhs' && (!P.includes('vhs') || P.includes('scan') || P.includes('crypt'))) return null;
+  if (f ? f !== 'vhs' : (!P.includes('vhs') || P.includes('scan') || P.includes('crypt'))) return null;   // (0.99.46: a style in focus other than VHS (Phosphor, Split…) shows none of VHS's Dropouts)
   return { label: 'Dropouts', key: 'vdrop', def: 1, list: FX_DROP, title: () => 'Dropouts: how often the tape loses its picture' };
 }
 // styles that use the Rate row for something else: Colour › Palette picks the palette, Mirror › Kaleido zooms in, Feedback: how long the echoes last
@@ -214,6 +214,7 @@ const styleIdx = (i, v) => { const k = String(v).split('+')[0]; return Math.max(
 // CRT can stack styles ('vhs+scan'): they run as separate stages in a fixed order. Degauss stays on its own (a one-off hit)
 const FX_MULTI = { rgb: true, glitch: true, codec: true }, FX_SOLO = {};   // Glitch's styles stack too (0.79), e.g. Corrupt + Crunch   // (Degauss, a one-off hit, moved to Glitch: CRT's styles all stack)
 const styleParts = (i, v) => { const L = String(v || '').split('+').map(p => STYLE_WAS[p] || p).filter(p => FX_DEFS[i].styles.some(s => s[0] === p)); return L.length ? L : [FX_DEFS[i].styles[0][0]]; };
+const styleFocus = (i, v) => { const P = styleParts(i, v), id = FX_DEFS[i].id; return FX_MULTI[id] && P.length > 1 && P.includes(fxFocus[id]) ? [fxFocus[id]] : P; };   // the styles whose settings the editor shows: the one in focus of a stack, else all
 const styleNorm = (i, v) => { const P = styleParts(i, v); return FX_DEFS[i].styles.map(s => s[0]).filter(k => P.includes(k)).join('+'); };   // valid parts, in the styles' order
 const styleMask = (i, v) => styleParts(i, v).reduce((m, p) => m | (1 << FX_DEFS[i].styles.findIndex(s => s[0] === p)), 0);
 const styleLabel = (i, v, short) => styleParts(i, v).map(p => { const s = FX_DEFS[i].styles.find(x => x[0] === p); return short ? STYLE_SHORT[p] || s[1] : s[1]; }).join('+');

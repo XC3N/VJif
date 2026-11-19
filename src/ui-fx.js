@@ -219,7 +219,7 @@ function syncFxUI0(){
       $('#fxRateRow').title = alt.off ? 'Dither: not on this palette (64 grey steps are already smooth; the NES never dithered)' : alt.title(ai); $('#fxRateRow').classList.remove('dimmed'); $('#fxRateRow').classList.toggle('nodith', !!alt.off); }   // (0.99.13: not 'dimmed': that hides the row's whole content, the bit switch too)
     else { $('#fxRate').max = FX_RATES.length - 1; $('#fxRateRow').title = 'Rate: how fast it moves (beats)';
     const ri = optIdx(FX_RATES, C.rate); $('#fxRate').value = ri; $('#fxRate').nextElementSibling.textContent = FX_RATES[ri][1];
-    $('#fxRateRow').classList.toggle('dimmed', !d.rate || (!!d.rateFor && !styleParts(di, C.style || d.styles[0][0]).some(p => d.rateFor.includes(p)))); $('#fxRate').dataset.def = optIdx(FX_RATES, fxDefaults()[di].rate); }
+    $('#fxRateRow').classList.toggle('dimmed', !d.rate || (!!d.rateFor && !styleFocus(di, C.style || d.styles[0][0]).some(p => d.rateFor.includes(p)))); $('#fxRate').dataset.def = optIdx(FX_RATES, fxDefaults()[di].rate); }
     const za = sizeAlt(d, C.style || d.styles[0][0], C); $('#fxSizeRow label').textContent = za ? za.label : 'Size';
     $('#fxSizeSeg').hidden = !(za && (za.seg || za.side)); $('#fxSize').hidden = $('#fxSize').nextElementSibling.hidden = !!(za && za.seg);   // a few fixed choices: a switch instead of the slider
     $('#fxSizeSeg').classList.toggle('one', !!(za && (za.toggle || za.side))); $('#fxSizeRow').classList.toggle('onerow', !!(za && za.toggle)); $('#fxSizeRow').classList.toggle('siderow', !!(za && za.side));   // one toggle: its label right-aligned against it; siderow (0.99.27): a slider with a toggle beside it
@@ -231,7 +231,7 @@ function syncFxUI0(){
     else { $('#fxSize').max = FX_SIZES.length - 1; $('#fxSizeRow').title = 'Size: the pixel block size at full amount';
     const zi = optIdx(FX_SIZES, C.size || d.sizeDef || 64); $('#fxSize').value = zi; $('#fxSize').nextElementSibling.textContent = FX_SIZES[zi][1];
     $('#fxSize').dataset.def = optIdx(FX_SIZES, d.sizeDef || 64);
-    $('#fxSizeRow').classList.toggle('dimmed', !d.size || d.id === 'colour' || (!!d.sizeFor && !styleParts(di, C.style).some(p => d.sizeFor.includes(p)))); }
+    $('#fxSizeRow').classList.toggle('dimmed', !d.size || d.id === 'colour' || (!!d.sizeFor && !styleFocus(di, C.style).some(p => d.sizeFor.includes(p)))); }
   }
 }
 // effect names refit (full or short) when the window changes, and are measured again once the fonts are in
@@ -263,7 +263,7 @@ const soloWas = new WeakMap();
 onSeg($('#fxStyle'), (b, e) => { const X = fxEd(); if (!X) return; const i = selFx < NFX ? selFx : preEd, id = FX_DEFS[i].id, v = b.dataset.v, P = styleParts(i, X.style);
   if (FX_MULTI[id] && P.length > 1 && P.includes(v) && fxFocus[id] !== v){ fxFocus[id] = v; syncFxUI(); return; }
   X.style = styleToggle(i, X.style || FX_DEFS[i].styles[0][0], v); soloWas.delete(X);
-  if (FX_MULTI[id]) fxFocus[id] = styleParts(i, X.style).includes(v) ? v : undefined;   // switched on: its settings show
+  if (FX_MULTI[id]){ const Q = styleParts(i, X.style); fxFocus[id] = Q.includes(v) ? v : Q[Q.length - 1]; }   // switched on: its settings show
   syncFxUI(); });
 $('#fxStyle').addEventListener('contextmenu', e => { const b = e.target.closest('button'), X = fxEd(); if (!b || !X) return; e.preventDefault();
   const i = selFx < NFX ? selFx : preEd, id = FX_DEFS[i].id, v = b.dataset.v, cur = styleNorm(i, X.style);
@@ -429,8 +429,8 @@ function fxModOpen(k){
   fxModK = fxModLast = k; syncFxMod();
 }
 function syncFxMod(){
-  const X = fxEd(), M = fxModK && X && X.mod && X.mod[fxModK];
-  if (fxModK && !M) fxModK = null;
+  const X = fxEd(); let M = fxModK && X && X.mod && X.mod[fxModK];
+  if (fxModK && (!M || !fxModPlain(fxModK) || $(FXM[fxModK].row).closest('.field').classList.contains('dimmed'))) fxModK = M = null;   // 0.99.46: the LFO view closes when the style in view has no such slider (it kept showing the previous style's Size)
   $('#fxEdit .envrow').classList.toggle('lfo', !!fxModK);
   $('#envLfo').classList.toggle('dimmed', !(X && fxModKeys().some(k => fxModPlain(k))));
   document.querySelectorAll('.lfoOff').forEach(b => b.classList.toggle('dimmed', !(X && X.mod && Object.values(X.mod).some(m => m && m.on))));   // 0.99.27: all of this effect's LFOs off at once   // (0.99.6: greyed where no setting can have an LFO)
