@@ -1,5 +1,5 @@
 // ---------- persistence: GIF files + settings in IndexedDB (cookies cap at ~4 KB) ----------
-const GIF_KEYS = ['name', 'sync', 'loop', 'speed', 'crisp', 'beats', 'subdiv', 'restart', 'inF', 'outF', 'startF', 'endF', 'outro', 'key', 'hsv', 'pal', 'swap', 'swapMerge', 'swapOff', 'trimOff', 'trig', 'env', 'lfo', 'shadow', 'nofx', 'gfx'];
+const GIF_KEYS = ['name', 'sync', 'loop', 'speed', 'crisp', 'beats', 'subdiv', 'restart', 'lfade', 'inF', 'outF', 'startF', 'endF', 'outro', 'key', 'hsv', 'pal', 'swap', 'swapMerge', 'swapOff', 'trimOff', 'trig', 'env', 'lfo', 'shadow', 'nofx', 'gfx'];
 const XF_KEYS = [...Object.keys(newXf()), 'alpha'];
 // IndexedDB 'kv' store:
 //   'gif:<hash>' → { name, blob }               original files, stored once (content hash), shared by sets

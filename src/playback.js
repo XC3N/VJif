@@ -1,28 +1,35 @@
 // ---------- playback ----------
 function idxAt(g, t){ const c = g.cum; let lo = 0, hi = c.length - 1; while (lo < hi){ const m = (lo + hi + 1) >> 1; if (c[m] <= t) lo = m; else hi = m - 1; } return lo; }
-function timeToIdx(g, t){
+// Loop fade (0.99.47): a forward loop's last part dissolves into its first, so a hard cut at the wrap isn't seen. The loop gets that much
+// shorter (the dissolve is the first stretch of the loop: the frames from the end fade out under the frames from the start fading in).
+// `o` (optional) receives the frame under the dissolve (o.u, an index into g.seq) and the share of the top frame (o.w, 0..1).
+function fadeMs(g){ return g.loop === 'loop' && g.lfade > 0 && g.seq.length > 3 ? Math.min(g.lfade, 0.5) * g.total : 0; }
+function fadeFrames(g){ const F = g.seq.length; return g.loop === 'loop' && g.lfade > 0 && F > 3 ? Math.min(F >> 1, Math.max(1, Math.round(g.lfade * F))) : 0; }
+const loopLen = g => g.total - fadeMs(g);            // one forward cycle in ms (the whole loop when Loop fade is off)
+function timeToIdx(g, t, o){
   const D = g.total; let tt;
-  if (g.loop === 'loop') tt = mod(t, D);
+  if (g.loop === 'loop'){ const F = fadeMs(g), D2 = D - F; tt = mod(t, D2); if (F && o && tt < F){ o.u = idxAt(g, D2 + tt); o.w = tt / F; } }
   else if (g.loop === 'reverse') tt = D - 1e-6 - mod(t, D);   // end to start, then wrap back to the end (0.87.3)
   else if (g.loop === 'pingpong'){ const c = mod(t, 2*D); tt = c < D ? c : Math.max(0, 2*D - c - 1e-6); }
   else tt = clamp(t, 0, D - 1e-6);
   return idxAt(g, tt);
 }
-function stepToIdx(g, s){
+function stepToIdx(g, s, o){
   const F = g.seq.length;
-  if (g.loop === 'loop') return mod(s, F);
+  if (g.loop === 'loop'){ const n = fadeFrames(g), P = F - n, m = mod(s, P); if (n && o && m < n){ o.u = P + m; o.w = (m + 1) / (n + 1); } return m; }
   if (g.loop === 'reverse') return F - 1 - mod(s, F);
   if (g.loop === 'pingpong'){ const P = Math.max(1, 2*F - 2), c = mod(s, P); return c < F ? c : P - c; }
   return clamp(s, 0, F - 1);
 }
-function frameIndex(c, g, now){
+function frameIndex(c, g, now, o){
   const O = g.outro && g.outroP && g.trig === 'fade' && c.env, rb = O ? (g.env.gate ? c.env.rel : (envOf(c, g, clock.beat) || c.env).t0 + (T => T.a + T.h)(envTimes(g))) : null;
   if (O && rb != null && clock.beat >= rb){   // Outro (0.99.29): from the let-go (Hold) or the fade out (One shot), the frames after Out once, then the last one stays
     const tb = clock.beat - rb, P = g.outroP;
     if (g.sync === 'step'){ const s = Math.floor(tb * g.subdiv + 1e-6); return P.seq[Math.min(s, P.seq.length - 1)]; }
     const t = g.sync === 'stretch' ? tb / g.beats * g.total : tb * 60000 / clock.bpm * g.speed;
     return P.seq[idxAt(P, Math.min(t, P.total - 1e-6))]; }
-  const k = seqIndex(c, g, now); return k < 0 ? g.intro.seq[-1 - k] : g.seq[k];   // (negative: a frame of the intro)
+  const k = seqIndex(c, g, now, o); if (o && o.u !== undefined) o.u = g.seq[o.u];
+  return k < 0 ? g.intro.seq[-1 - k] : g.seq[k];   // (negative: a frame of the intro)
 }
 // Timing maps time since trigger to a position; Loop (inside timeToIdx/stepToIdx) handles the end;
 // Restart (any timing) jumps back to the start every N beats.
@@ -38,7 +45,7 @@ function envOf(c, g, beat){
     for (let j = K; j >= 1; j--) f = envLevelE({ t0: t - j * N, from: f, rel: null, noGate: true }, g, t - (j - 1) * N); from = f; }
   return { t0: t, from, rel: null, noGate: true, auto: true };
 }
-function seqIndex(c, g, now){
+function seqIndex(c, g, now, o){
   const AE = g.trig === 'fade' && g.env.every ? envOf(c, g, clock.beat) : null, auto = AE && AE.auto;
   let b = clock.beat - (auto ? AE.t0 : c.startBeat);
   if (g.restart) b = mod(b, g.restart);
@@ -46,20 +53,20 @@ function seqIndex(c, g, now){
   switch (g.sync){
     case 'stretch': {                                // Fit: one cycle = loop length (ping-pong: the round trip)
       let t = b / g.beats * g.total; if (I){ if (t < I.total) return -1 - idxAt(I, t); t -= I.total; }
-      return timeToIdx(g, t * (g.loop === 'pingpong' ? 2 : 1)); }
+      return timeToIdx(g, t * (g.loop === 'pingpong' ? 2 : 1) * (g.loop === 'loop' ? loopLen(g) / g.total : 1), o); }
     case 'step': {                                   // Step: every frame lasts `subdiv` frames per beat
       let s = Math.floor(b * g.subdiv + 1e-6); if (I){ if (s < I.seq.length) return -1 - Math.max(0, s); s -= I.seq.length; }
-      return stepToIdx(g, s); }
+      return stepToIdx(g, s, o); }
     default: {                                       // Free: own timing × speed (beat-based while restarting)
       let t = (g.restart || auto ? b * 60000 / clock.bpm : now - c.startTime) * g.speed; if (I){ if (t < I.total) return -1 - idxAt(I, Math.max(0, t)); t -= I.total; }
-      return timeToIdx(g, t); }
+      return timeToIdx(g, t, o); }
   }
 }
 // one cycle in beats (null = free-running, tempo-independent)
 function cycleBeats(g){
   const pp = g.loop === 'pingpong';
   if (g.sync === 'stretch') return g.beats;
-  if (g.sync === 'step'){ const F = g.seq.length; return (pp ? Math.max(1, 2*F - 2) : F) / g.subdiv; }
+  if (g.sync === 'step'){ const F = g.seq.length; return (pp ? Math.max(1, 2*F - 2) : F - fadeFrames(g)) / g.subdiv; }
   return null;
 }
 
@@ -151,7 +158,7 @@ function envTimes(g){
   if (S.len === 'gif' && !S.gate){
     const T = g.media && g.media.text, mq = T && T.marquee && g.lfo.x && g.lfo.x.on ? g.lfo.x.per : 0;   // a marquee: one play = once across the screen
     let cyc = mq || cycleBeats(g);
-    if (cyc === null) cyc = g.total * (g.loop === 'pingpong' ? 2 : 1) / g.speed * clock.bpm / 60000;
+    if (cyc === null) cyc = (g.loop === 'pingpong' ? 2 * g.total : loopLen(g)) / g.speed * clock.bpm / 60000;
     if (g.restart) cyc = Math.min(cyc, g.restart);
     if (a + r > cyc){ const k = cyc / (a + r); a *= k; r *= k; }
     h = cyc - a - r;
