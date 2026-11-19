@@ -7,6 +7,7 @@ The version shows in the About panel (click the logo). What still needs testing 
 ## 0.99.45 — 2026/11/19
 
 - Scenes: when the strip shows a bank other than the one holding the live scene (the one on the output, while Prep is on), that bank's 1–4 button lights up in the Signal colour with a small LED dot, so you can find your way back. Nothing moves.
+- Bypass FX GIFs are now untouched by the effects on All as well as their layer's effects (they were drawn under the All effects, so a Bypass FX GIF on Overlay still got them). Freeze holds them as before.
 
 ## 0.99.44 — 2026/11/16
 
