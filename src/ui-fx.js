@@ -263,7 +263,7 @@ const soloWas = new WeakMap();
 onSeg($('#fxStyle'), (b, e) => { const X = fxEd(); if (!X) return; const i = selFx < NFX ? selFx : preEd, id = FX_DEFS[i].id, v = b.dataset.v, P = styleParts(i, X.style);
   if (FX_MULTI[id] && P.length > 1 && P.includes(v) && fxFocus[id] !== v){ fxFocus[id] = v; syncFxUI(); return; }
   X.style = styleToggle(i, X.style || FX_DEFS[i].styles[0][0], v); soloWas.delete(X);
-  if (FX_MULTI[id]) fxFocus[id] = styleParts(i, X.style).includes(v) ? v : undefined;   // switched on: its settings show
+  if (FX_MULTI[id]){ const Q = styleParts(i, X.style); fxFocus[id] = Q.includes(v) ? v : Q[Q.length - 1]; }   // switched on: its settings show
   syncFxUI(); });
 $('#fxStyle').addEventListener('contextmenu', e => { const b = e.target.closest('button'), X = fxEd(); if (!b || !X) return; e.preventDefault();
   const i = selFx < NFX ? selFx : preEd, id = FX_DEFS[i].id, v = b.dataset.v, cur = styleNorm(i, X.style);
