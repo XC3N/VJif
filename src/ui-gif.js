@@ -47,6 +47,7 @@ function syncGifUI(){
     $('#gPalFit').checked = !!(g.pal && g.pal.fit); $('#gPalFit').closest('.field').classList.toggle('dimmed', !(g.pal && g.pal.i >= 0));
   syncShadowUI(g);
   segSet('#gSync', g.sync); segSet('#gLoop', g.loop); famShow($('#gRestart'), g.restart || 0); segSet('#gRes', String(g.media.scale || 1)); $('#gRes').classList.toggle('dimmed', !!g.media.text);
+  { const L = $('#gLFade'), f = g.loop === 'loop'; L.value = Math.round((g.lfade || 0) * 20); L.nextElementSibling.textContent = g.lfade > 0 ? Math.round(g.lfade * 100) + '%' : 'off'; $('#gLFadeRow').classList.toggle('dimmed', !f); }   // (forward loops only)
   $('#gSpeed').value = g.speed; $('#gSpeed').nextElementSibling.textContent = g.speed.toFixed(2) + '×';
   famShow($('#gBeats'), g.beats); famShow($('#gSub'), 1 / g.subdiv);
   showCycle(g);
@@ -159,6 +160,7 @@ $('#swClear').addEventListener('click', () => { const g = curGif(); if (!g) retu
 
 $('#gNoFx').addEventListener('change', e => { const g = curGif(); if (g){ g.nofx = e.target.checked; redraw.all = true; } });
 $('#gSmooth').addEventListener('change', e => { const g = curGif(); if (g){ g.crisp = !e.target.checked; renderPad(selPad); redraw.all = true; } });   // a setting of the GIF (in GIF › Play), not of where it's placed
+$('#gLFade').addEventListener('input', e => { const g = curGif(); if (!g) return; g.lfade = +e.target.value / 20; syncGifUI(); });   // 0.99.47: Loop fade, 0–50% of the loop in 5% steps
 $('#gSpeed').addEventListener('input', e => { const g = curGif(); if (g){ g.speed = +e.target.value; e.target.nextElementSibling.textContent = g.speed.toFixed(2) + '×'; showCycle(g); } });
 const HSV_UI = [['#hH', 'h', v => (v > 0 ? '+' : '') + v + '°'], ['#hS', 's', v => (+v).toFixed(2) + '×'], ['#hV', 'v', v => (+v).toFixed(2) + '×']];
 HSV_UI.forEach(([id, k, fmt]) => $(id).addEventListener('input', e => {

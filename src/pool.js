@@ -99,7 +99,7 @@ function makeInst(m, saved = null){
   const n = m.src.length;
   const g = { uid: ++gifSeq, fxWaits: [], media: m, hash: m.hash, name: m.name, blob: m.blob, type: m.type, src: m.src, frames: m.src, durs: m.durs,
            w: m.w, h: m.h, srcBytes: m.srcBytes, bytes: m.srcBytes,
-           sync: 'free', loop: 'loop', speed: 1, beats: 4, subdiv: 1, restart: 0, crisp: true, nofx: false, inF: 0, outF: n - 1, startF: 0, endF: n - 1, outro: false,
+           sync: 'free', loop: 'loop', speed: 1, beats: 4, subdiv: 1, restart: 0, lfade: 0, crisp: true, nofx: false, inF: 0, outF: n - 1, startF: 0, endF: n - 1, outro: false,
            key: { on: false, color: [0, 255, 0], tol: 0, soft: 0, region: 'all', seed: null }, hsv: { h: 0, s: 1, v: 1, off: true }, pal: { i: -1, d: 0 }, shadow: { ...SHADOW_DEF }, swap: [], swapMerge: 0, fxVer: 0, keyGen: 0, keyT: 0, keyMsg: '',
            masks: null, maskGen: 0, maskT: 0,
            trig: 'stay', env: { a: 0.5, h: 1, r: 2, curve: 'lin', gate: false, len: 'free', every: 0 }, lfo: {} };
@@ -166,6 +166,7 @@ function applyGifSettings(g, saved){
   if (lfo){ g.lfo = JSON.parse(JSON.stringify(lfo)); for (const k in g.lfo){ const A = g.lfo[k]; if (A && A.shape === 'pulse'){ A.shape = 'square'; A.sk = 0.25; } if (A && A.shape === 'down'){ A.shape = 'up'; A.inv = !A.inv; } } }   // Pulse (before 0.88) = Square with Skew 25%; Ramp ↓ (before 0.89) = Ramp inverted
   if (g.sync === 'restart'){ g.sync = 'free'; g.restart = g.beats; }   // pre-v0.9 sets
   if (g.restart === undefined) g.restart = 0;
+  if (!(g.lfade > 0)) g.lfade = 0;   // Loop fade (0.99.47): sets from before have none
   if (g.loop === 'once'){ g.loop = 'loop'; if (g.trig !== 'fade'){ g.trig = 'fade'; Object.assign(g.env, { a: 0, r: 0, gate: false, len: 'gif' }); } }   // Once (before 0.83): now a One shot of one play
   rebuildSeq(g);
 }
