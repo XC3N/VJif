@@ -4,6 +4,10 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
+## 0.99.45 — 2026/11/19
+
+- Bypass FX GIFs are now untouched by the effects on All as well as their layer's effects (they were drawn under the All effects, so a Bypass FX GIF on Overlay still got them). Freeze holds them as before.
+
 ## 0.99.44 — 2026/11/16
 
 Memory: a set's frames take a quarter or less.
