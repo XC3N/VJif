@@ -216,14 +216,14 @@ function focusPad(i){
   const li = layers.findIndex(L => L.clips.some(c => c.pad === i));
   if (li >= 0){ layers[li].sel = layers[li].clips.find(c => c.pad === i); setTarget(li); }
 }
-function updateMem(){
+function updateMem(quiet){
   // decoded GIFs count once (the pool); each instance adds only its own processed frames / key masks
-  const base = pool.reduce((a, m) => a + m.srcBytes, 0) / 1048576;
+  const base = pool.reduce((a, m) => a + m.srcBytes, 0) / 1048576, hot = frameHotBytes / 1048576;   // 0.99.44: the frames packed, plus the ones unpacked now (what's playing)
   let extra = 0; insts.forEach(g => { extra += g.bytes - g.srcBytes + (g.maskBytes || 0); }); extra /= 1048576;
-  const mb = base + extra, el = $('#mem'); el.innerHTML = `<i>MEM</i>${mb.toFixed(0)} MB`;
-  setTip(el, `Decoded frames: ${pool.length} GIF${pool.length === 1 ? '' : 's'} in the pool, ~${base.toFixed(0)} MB` + (extra >= 0.5 ? ` + ~${extra.toFixed(0)} MB of colour-processed copies / key masks` : ''));
+  const mb = base + hot + extra, el = $('#mem'); el.innerHTML = `<i>MEM</i>${mb.toFixed(0)} MB`;
+  setTip(el, `Decoded frames: ${pool.length} GIF${pool.length === 1 ? '' : 's'} in the pool, ~${base.toFixed(0)} MB packed + ~${hot.toFixed(0)} MB in use now` + (extra >= 0.5 ? ` + ~${extra.toFixed(0)} MB of colour-processed copies / key masks` : ''));
   el.classList.toggle('bad', mb > MEM_WARN_MB);
-  if (mb > MEM_WARN_MB) toast(`The set is using ~${mb.toFixed(0)} MB of decoded frames — remove unused GIFs from the pool if playback stutters`);
+  if (mb > MEM_WARN_MB && !quiet) toast(`The set is using ~${mb.toFixed(0)} MB of decoded frames — remove unused GIFs from the pool if playback stutters`);
   const pb = $('#poolBtn'); if (pb) pb.textContent = `Pool ${pool.length}`;
 }
 let padSig = '';

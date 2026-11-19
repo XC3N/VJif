@@ -4,6 +4,18 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
+## 0.99.44 — 2026/11/16
+
+Memory: a set's frames take a quarter or less.
+
+- GIF frames are kept packed and unpacked only while they are in use. Until now every frame of every GIF in the pool was held as a full picture (4 bytes a pixel) whether it was playing or not: 1 GB for a set of 35 GIFs, and Pool › Optimize couldn't help when the GIFs were already at the size they are shown. A GIF frame has at most 256 colours, so it is now kept as the file has it, one byte a pixel plus its colours (a quarter of the memory), and as runs where the frame has flat areas or transparent surroundings (often a tenth or less). The picture is the same, pixel for pixel (the render tests match).
+- A frame is unpacked the first time it shows (under a millisecond for a 500 px GIF, 2 to 3 ms at 1080p) and stays ready while its GIF keeps playing, so a playing GIF costs what it did. Ten seconds after a GIF was last shown its pictures are let go; the next hit unpacks them again as they come. At most 512 MB is kept unpacked.
+- Frames with more than 256 colours (a GIF kept at ½ or ¼ with smoothing, a photo WebP or PNG sequence) take half when they have few enough colours, and stay as they were otherwise.
+- A GIF with Colour on (key, adjust, swaps, palette) no longer keeps its original frames unpacked beside the coloured ones.
+- Identical frames in a row (a held picture saved as several frames) are stored once.
+- MEM in the top bar and the monitor show both numbers: the set packed, and what is unpacked now. Each GIF's size in the Pool is its packed size.
+- Decoding a set takes a little longer (the frames are packed as they are decoded): about a second more for a 1 GB set here.
+
 ## 0.99.43 — 2026/11/15
 
 The effects shaders, from the performance review of 0.99.40.

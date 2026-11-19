@@ -57,3 +57,4 @@ python3 tests/run_all.py golden crt_stack -v   # some tests, with their output
 | feature_bits | 0.68–0.73: layer solo, frames with hidden / covered windows, BRB linked to Prep, count-in, transition regroup and options, border deselect, Ctrl hush, folding sections, Swap › Pick, LFO gap, mask modes, shadow crop. |
 | mask_paint | 0.78: painted layer masks: freehand and ellipse strokes, saved with the set, undo per stroke, read back. |
 | ui_081 | 0.81: mask bar line (right button erases, another layer closes it), transition slider row (Hold, Repeats), Ramp repeat count, Dip hold, Hit › Hold, preset tile details, style solo, Settings folds, all-layers pip colour. |
+| frames_packed | Packed frames: the same pixels as a plain decode, the memory saved, pictures held only while in use, a dropped GIF lets go. |

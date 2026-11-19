@@ -223,7 +223,7 @@ async function applySnapshot(st, { wait = true, liveFirst = false } = {}){
       sceneLoading.delete(i); renderScenes();
     }
     await Promise.all(jobs.values());
-    if (stale()){ got.forEach(m => { if (!pool.includes(m)) m.src.forEach(f => f.close()); }); return; }   // another set was loaded meanwhile: these aren't its GIFs
+    if (stale()){ got.forEach(m => { if (!pool.includes(m)) dropFrames(m.src); }); return; }   // another set was loaded meanwhile: these aren't its GIFs
     add(); const at = new Map(st.pool.map((e, k) => [e.hash, k])); pool.sort((a, b) => (at.get(a.hash) ?? 1e9) - (at.get(b.hash) ?? 1e9));   // the pool in its saved order (files added meanwhile stay last)
     renderScenes(); renderPool(); updateMem(); if (typeof lpRefresh === 'function') lpRefresh();
   }

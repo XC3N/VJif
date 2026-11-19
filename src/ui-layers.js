@@ -173,7 +173,7 @@ $('#xReset').addEventListener('click', () => { const c = selClip(); if (c){ Obje
 // the bounds of the non-transparent pixels over all frames, as crop fractions (kept on the frame list)
 function contentCrop(src){
   if (src._cc) return src._cc;
-  const w = src[0].width, h = src[0].height, cv = new OffscreenCanvas(w, h), x = cv.getContext('2d', { willReadFrequently: true });
+  const w = frameW(src), h = frameH(src), cv = new OffscreenCanvas(w, h), x = cv.getContext('2d', { willReadFrequently: true });
   let l = w, t = h, r = -1, b = -1;
   for (const f of src){ x.clearRect(0, 0, w, h); x.drawImage(f, 0, 0); const d = x.getImageData(0, 0, w, h).data;
     for (let y = 0; y < h; y++){ const row = y * w * 4; for (let i = 0; i < w; i++) if (d[row + i*4 + 3] > 8){ if (i < l) l = i; if (i > r) r = i; if (y < t) t = y; if (y > b) b = y; } } }

@@ -4,9 +4,9 @@
 // (flat memory, load or FPS wandering). It is only drawn while the window is open; the samples are kept either way (tiny).
 const dbg = { win: null, log: [], t0: Date.now() };
 function dbgSample(s){
-  let base = 0, extra = 0, cached = 0; pool.forEach(m => { base += m.srcBytes || 0; }); insts.forEach(g => { extra += g.bytes - g.srcBytes + (g.maskBytes || 0); if (g.fxP) cached++; });
+  let base = 0, raw = 0, extra = 0, cached = 0; pool.forEach(m => { base += m.srcBytes || 0; raw += m.rawBytes || m.srcBytes || 0; }); insts.forEach(g => { extra += g.bytes - g.srcBytes + (g.maskBytes || 0); if (g.fxP) cached++; });
   dbg.log.push({ t: Date.now(), fps: s.fps, hz: s.hz, load: s.load, peak: s.peak, drops: s.drops, stalls: s.stalls, stallMs: s.stallMs,
-    heap: performance.memory ? performance.memory.usedJSHeapSize / 1048576 : null, pool: base / 1048576, extra: extra / 1048576, gifs: pool.length, insts: insts.size, cached });
+    heap: performance.memory ? performance.memory.usedJSHeapSize / 1048576 : null, pool: base / 1048576, raw: raw / 1048576, hot: frameHotBytes / 1048576, extra: extra / 1048576, gifs: pool.length, insts: insts.size, cached });
   if (dbg.log.length > 3600) dbg.log.shift();
   if (dbg.win){ if (dbg.win.closed) dbg.win = null; else try { dbgDraw(); } catch (e) {} }
 }
@@ -36,7 +36,7 @@ function dbgDraw(){
     `FPS ${last.fps}/${last.hz} · LOAD ${last.load}% · worst frame in the last minute ${mx('peak', m1).toFixed(1)} ms`,
     `Late frames in the last minute: ${sum('drops', m1)} · stalls over 50 ms: ${sum('stalls', m1)} (${sum('stallMs', m1).toFixed(0)} ms)`, '',
     last.heap !== null ? `JS heap ${last.heap.toFixed(0)} MB` + (slope === null ? ' (the trend shows after a minute)' : ` · last 10 min: ${slope >= 0 ? '+' : ''}${slope.toFixed(2)} MB/min` + (slope > 1 ? ' — rising' : ' — flat')) : 'JS heap: only Chrome / Edge report it',
-    `Decoded frames ${last.pool.toFixed(0)} MB (${last.gifs} GIFs in the pool) + processed copies / key masks ${last.extra.toFixed(0)} MB`,
+    `Frames ${last.pool.toFixed(0)} MB packed (${last.raw.toFixed(0)} MB as pictures, ${last.gifs} GIFs in the pool) + ${last.hot.toFixed(0)} MB unpacked now + processed copies / key masks ${last.extra.toFixed(0)} MB`,
     `Start: ready ${(bootT.readyAt / 1000).toFixed(1)} s after the page opened · restoring the set ${(bootT.restoreMs / 1000).toFixed(1)} s · shaders: ${bootT.link.map(([n, ms]) => n + ' ' + ms + ' ms').join(', ') || '—'}`,
     `Test switches: texture reads with an explicit level ${bootT.lod ? 'ON' : 'off' + (AB.get('lod') === '0' ? ' (?lod=0)' : ' (not available on this graphics card)')} · halving quality ${HALF_Q}`,
     `Start timeline (s since the page opened): ${bootT.marks.map(([n, ms]) => n + ' ' + (ms / 1000).toFixed(1)).join(' → ')}`,
