@@ -2,3 +2,6 @@ dist/
 node_modules/
 .DS_Store
 tests/out/
+
+# Claude Code per-machine permission settings (can contain pasted secrets)
+.claude/settings.local.json
