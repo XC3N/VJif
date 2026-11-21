@@ -169,7 +169,7 @@ function syncFxUI0(){
       el.classList.toggle('empty', e);
       el.title = `${FXP_LABELS[k]} with Caps Lock: ${fxPreLong(P)} · Caps+Shift+${FXP_LABELS[k]}: store · right-click: edit · Alt+click: name`; }
   });
-  $('#fxEdit').classList.toggle('pre', pre); $('#fxEdit').classList.toggle('ent', !!E); { const Xe = d && typeof fxEd === 'function' ? fxEd() : null; $('#fxEdit').classList.toggle('sized', !!d && (!!d.size || d.id === 'wobble' || !!(Xe && sizeAlt(d, Xe.style || d.styles[0][0], Xe)))); } $('#fxEdit').classList.toggle('rated', !!d && !!d.rate);   // (0.99.26: a toggle that takes the Size slot — Mirror, Fit range — needs the row shown even where there's no Size; Wobble: no size, but its Edges toggle sits in that row, 0.93; 0.94: the comment had swallowed 'rated', hiding Rate)
+  $('#fxEdit').classList.toggle('pre', pre); $('#fxEdit').classList.toggle('ent', !!E); { const Xe = d && typeof fxEd === 'function' ? fxEd() : null; var Xr = Xe; $('#fxEdit').classList.toggle('sized', !!d && (!!d.size || d.id === 'wobble' || !!(Xe && sizeAlt(d, Xe.style || d.styles[0][0], Xe)))); } $('#fxEdit').classList.toggle('rated', !!d && (!!d.rate || (d.id === 'mirror' && Xr && (Xr.style || d.styles[0][0]) === 'kal')));   // (0.99.26: a toggle that takes the Size slot — Mirror, Fit range — needs the row shown even where there's no Size; Wobble: no size, but its Edges toggle sits in that row, 0.93; 0.94: the comment had swallowed 'rated', hiding Rate)
   $('#fxName').innerHTML = (pre && !E ? '' : fxIcon(d.id)) + (E ? d.name : pre ? FXP_LABELS[selFx - NFX] : d.name);   // the effect's icon in the LCD (names are ours: no escaping needed)
   $('#fxName').title = E ? `${d.name} as ${FXP_LABELS[selFx - NFX]} plays it — click to go back to the preset` : pre ? 'Effect preset' : `${d.title} — drag onto a preset to add it there`;
   $('#fxName').classList.toggle('grab', !pre); $('#fxName').classList.toggle('back', !!E);
@@ -201,6 +201,8 @@ function syncFxUI0(){
     am.nextElementSibling.textContent = n; am.closest('.field').title = 'Slices: how many wedges the kaleidoscope has'; }
   else { const pp = amtPart(dd, A), v = pp ? A.pamt?.[pp] ?? A.amt : A.amt; Object.assign(am, { min: 0.05, max: 1, step: 0.01 }); am.value = v; am.dataset.def = 1; am.dataset.pct = ''; am.nextElementSibling.textContent = Math.round(v * 100) + '%';
     am.closest('.field').title = (wear ? 'Wear: how worn the tape is (tracking, colour bleed, dropouts, noise)' : 'Amount: how strong') + (pp ? ` — for ${dd.styles[FXS[dd.id][pp]][1]} only (the style in focus; each stacked style has its own)` : ''); }
+  { const row = $('#fxCenRow'), show = kal && (!pre || !!E); row.hidden = !show;   // 0.99.49: Mirror › Kaleido: the centre, its own row (X and Y)
+    if (show){ const K = E || fxConfE(selFx); for (const [id, key] of [['#fxCx', 'kcx'], ['#fxCy', 'kcy']]){ const v = Math.round((K[key] ?? 0) * 100); $(id).value = v; $(id).nextElementSibling.textContent = (v > 0 ? '+' : '') + v + '%'; } } }
   drawFxEnv(); syncEnvSl();
   if (!pre || E){
     const C = E || fxConfE(selFx), di = E ? preEd : selFx;
@@ -388,6 +390,7 @@ onSeg($('#fxSizeSeg'), b => { const X = fxEd(); if (!X) return; const za = sizeA
 onSeg($('#fxPalVar'), b => { const X = fxEd() || fxConfE(selFx); if (!X) return; const fi = +$('#fxPalVar').dataset.f, x = PAL_FAM[fi].m[+b.dataset.v]; X.pal = x.i; palLast[fi] = x.i; syncFxUI(); });
 onSeg($('#fxDpat'), b => { const X = fxEd(); if (!X) return; const alt = rateAlt(FX_DEFS[selFx < NFX ? selFx : preEd], X.style, X);
   if (alt && alt.lcd) X.dots = +b.dataset.v; else X.dpat = +b.dataset.v; syncFxUI(); });
+for (const [id, key] of [['#fxCx', 'kcx'], ['#fxCy', 'kcy']]) $(id).addEventListener('input', e => { const X = fxEd(); if (!X) return; X[key] = +e.target.value / 100; syncFxUI(); });
 $('#fxRate').addEventListener('input', e => { const X = fxEd(); if (!X) return; const alt = rateAlt(FX_DEFS[selFx < NFX ? selFx : preEd], X.style, X); if (alt){ const v = alt.list[+e.target.value][0]; if (alt.set) alt.set(X, v); else X[alt.key] = v; } else X.rate = FX_RATES[+e.target.value][0]; syncFxUI(); });
 $('#fxPreList').addEventListener('click', e => { if (selFx < NFX) return; const b = e.target.closest('button');
   if (b){ delete fxPre[selFx - NFX].fx[b.dataset.i]; syncFxUI(); return; }

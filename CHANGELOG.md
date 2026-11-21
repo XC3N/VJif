@@ -4,6 +4,13 @@ Versions follow `major.minor.patch`. 1.0 comes once VJif has been played live on
 recording uploaded to the platforms). Until then, minor versions add features and patch versions fix things.
 The version shows in the About panel (click the logo). What still needs testing by hand is in `TESTS.md`.
 
+## 0.99.49 — 2026/11/19
+
+Kaleido: Zoom is back, and the centre moves.
+
+- Mirror › Kaleido: the Zoom slider was hidden since 0.99.27 (Angle took the Size slot and the layout dropped the Rate row with it). It shows again beside Slices and Angle, with its LFO (ID-245).
+- Mirror › Kaleido: a Centre row with X and Y sliders (-50% to +50%) moves the middle of the kaleidoscope. It shows only for Kaleido, saved with the effect and in presets and at all three levels (ID-245). No LFO on X / Y yet.
+
 ## 0.99.48 — 2026/11/19
 
 Loop fade.
