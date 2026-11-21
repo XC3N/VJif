@@ -24,7 +24,7 @@ release. Want to help test? Pick an unticked line and open an issue with what yo
 - [x] {g2} **MIDI mappings survive a reload** — reload VJif: mappings work again without re-learning.
 - [x] {g3} **Controller unplugged at load** — Settings shows your input as "(not connected)".
 - [ ] {g4} **MIDI clock from the DAW** (0.32: MIDI button in the top bar, input in Settings › MIDI) — a bar-length recording starts when the DAW starts and stops when it stops.
-- [x] {lp1} **Launchpad lights** (0.43) — Settings › MIDI control › Launchpad pad lights, then Set up Launchpad: pads light in their GIF's colour, the live scene is white, effects light when on, Tap blinks on the beat. Untick: the Launchpad goes back to its own mode.
+- [x] {lp1} **Launchpad lights** (0.43) — Settings › MIDI control › Set up Launchpad: pads light (the lights come on by themselves when a Launchpad is plugged in) in their GIF's colour, the live scene is white, effects light when on, Tap blinks on the beat.
 - [x] {lpmap} **Launchpad map** (0.47) — Settings › MIDI control › Map (or ? › Launchpad map): the picture matches where things are on your Launchpad and the colours match its lights.
 - [x] {trgpu} **GPU transitions on your machine** (0.53) — Glitch › VHS, Glitch › Scramble, Dissolve (Pixel 2) at full render size, output full screen: smooth, LOAD lower than before, they look as they did.
 - [x] {g5} **Performance on your GPU** — Feedback, Glitch and Luma especially, full screen in the output window. 0.40: LOAD should be lower, and pad hits / scene changes shouldn't hitch.
