@@ -105,7 +105,7 @@ function lpLayout(){
   const keys = new Set(map.map(m => m.key)), was = new Set([91, 92, 93, 94, 80, 70].map(cc));
   midiCtl.map = midiCtl.map.filter(m => !keys.has(m.key) && !(was.has(m.key) && (m.t === 'scbank' || m.t === 'padbank'))).concat(map); saveMidiCtl(); renderMidiCtl(); markLearn();   // (the arrows' earlier places are cleared)
   if (!midiAccess) getMidi().then(() => { bindCtlInputs(); fillMidi(); renderMidiCtl(); }).catch(() => {});
-  toast2(`Launchpad layout loaded: ${map.length} pads and buttons mapped (your other mappings are kept)`);
+  toast2(`Launchpad set up: ${map.length} pads and buttons mapped (your other mappings are kept)`);
 }
 // ---- Launchpad map: the Pro MK3's pads and buttons in Programmer mode, with what each one is mapped to ----
 // grid pads send notes 11–88 (row·10 + column, row 1 at the bottom); the buttons around it send CCs: top row 91–98,

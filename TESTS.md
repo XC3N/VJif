@@ -24,7 +24,7 @@ release. Want to help test? Pick an unticked line and open an issue with what yo
 - [x] {g2} **MIDI mappings survive a reload** — reload VJif: mappings work again without re-learning.
 - [x] {g3} **Controller unplugged at load** — Settings shows your input as "(not connected)".
 - [ ] {g4} **MIDI clock from the DAW** (0.32: MIDI button in the top bar, input in Settings › MIDI) — a bar-length recording starts when the DAW starts and stops when it stops.
-- [x] {lp1} **Launchpad lights** (0.43) — Settings › MIDI control › Lights on a Launchpad, then Launchpad layout: pads light in their GIF's colour, the live scene is white, effects light when on, Tap blinks on the beat. Untick: the Launchpad goes back to its own mode.
+- [x] {lp1} **Launchpad lights** (0.43) — Settings › MIDI control › Launchpad pad lights, then Set up Launchpad: pads light in their GIF's colour, the live scene is white, effects light when on, Tap blinks on the beat. Untick: the Launchpad goes back to its own mode.
 - [x] {lpmap} **Launchpad map** (0.47) — Settings › MIDI control › Map (or ? › Launchpad map): the picture matches where things are on your Launchpad and the colours match its lights.
 - [x] {trgpu} **GPU transitions on your machine** (0.53) — Glitch › VHS, Glitch › Scramble, Dissolve (Pixel 2) at full render size, output full screen: smooth, LOAD lower than before, they look as they did.
 - [x] {g5} **Performance on your GPU** — Feedback, Glitch and Luma especially, full screen in the output window. 0.40: LOAD should be lower, and pad hits / scene changes shouldn't hitch.
@@ -209,7 +209,7 @@ release. Want to help test? Pick an unticked line and open an issue with what yo
 - [x] {thxz69l2wppdbiybojgx} **Rate row back** (0.94) — Glitch, Codec, Shake, Pixel…: effects with both Rate and Size show both rows again (0.93 hid Rate).
 - [x] {nm0n2dwbl1sns35ccbiv} **Hide a GIF from its chip** (0.95) — Right-click a GIF chip on a layer card: it greys out and its GIF is neither drawn nor picked (LOAD drops if it was the heavy one); right-click again: back. Saved with the set.
 - [x] {ycqverpl5fk144epkaew} **Scene export / import** (0.95) — Scenes heading › ↓: a .vjscene file of the scene you are on (GIFs inside). ↑ (or drop the file on the scenes): it lands in the first empty scene of the bank on show (or the empty tile it was dropped on), pads, layers, masks and name intact; Ctrl+Z takes it out.
-- [x] {vc52kikti0ygo0pkl6g0} **Launchpad arrows** (0.95) — Settings › MIDI › Launchpad layout again, then on the Launchpad: ▲ / ▼ step the scene banks (wrapping), ◀ / ▶ show scene pads bank 1 / 2 (the one on show is lit).
+- [x] {vc52kikti0ygo0pkl6g0} **Launchpad arrows** (0.95) — Settings › MIDI › Set up Launchpad again, then on the Launchpad: ▲ / ▼ step the scene banks (wrapping), ◀ / ▶ show scene pads bank 1 / 2 (the one on show is lit).
 - [x] {jhjtz84jxa9smlech8kn} **Effect preview off the output** (0.95) — Output window open (or recording): drag an effect slider with Preview on: the effect plays in the preview only; the output window stays clean.
 - [x] {wwuuyr4dc3r7392qm6qm} **Scene copy keeps masks** (0.95) — Paint a mask on a layer, Ctrl-drag the scene onto another tile: the copy has the mask (and the layer lock / transition).
 - [x] {a5hjsigm8hsc3y6shxti} **Bypass FX vs All** (0.95) — A GIF with Bypass FX on: an effect on its layer leaves it alone, and (0.99.45) so does an effect on All. Freeze still holds it.
@@ -279,7 +279,7 @@ release. Want to help test? Pick an unticked line and open an issue with what yo
 - [x] {gs9x2khl8kvkci0nutqg} **Import into the empty scene** (0.99) — Go to an empty scene, Scenes ↑ a .vjscene: it lands in the scene you are on. Export a scene with no name: the file is scene-N.vjscene and the imported scene has no name. The Scenes heading reads numpad / CAPS·FX in full, ↓ ↑ before the banks.
 - [x] {hxx8bwukaj2xpxe77cg7} **Loupe move and pin** (0.99) — Loupe on: drag the loupe somewhere else (stays there after a reload; double-click: back to the corner); right-click it: blue border, it stays on that spot while the pointer goes elsewhere; right-click: follows again.
 - [x] {q6u530o2frizoxtztf3v} **Panel picture as loaded** (0.99) — A GIF with a key or colour: right-click the GIF picture at the top right: it shows the GIF as loaded (dashed outline); right-click: as drawn again (remembered).
-- [x] {scl20ykr7vp110e2bksm} **Launchpad arrows (Pro MK3)** (0.99) — Settings › MIDI › Launchpad layout again: ◀ ▶ at the top left step the scene banks, ▲ ▼ on the left side show scene pads bank 1 / 2; Session and Note do nothing.
+- [x] {scl20ykr7vp110e2bksm} **Launchpad arrows (Pro MK3)** (0.99) — Settings › MIDI › Set up Launchpad again: ◀ ▶ at the top left step the scene banks, ▲ ▼ on the left side show scene pads bank 1 / 2; Session and Note do nothing.
 - [x] {d7ab6t7tt11gto46dw8f} **Sync on play remembered** (0.99) — Music: tick Sync on play, reload: it is still ticked.
 - [x] {5q2g5ddfh2lc6nluvmgb} **New rows scroll into view** (0.87.3) — at 80% and 125% UI zoom (Settings › Interface), click a swatch low in Display › Swap colours: the row that opens is scrolled into view.
 - [x] {y08e3dqtjpeoa8jqrp0e} **Always on top** (0.89.3) — Right-click Output: a floating window with no address bar stays above other windows, plays, takes pad keys; right-click again closes it; click Output switches to a normal window.
@@ -310,7 +310,7 @@ release. Want to help test? Pick an unticked line and open an issue with what yo
 - [x] {2ejq54kc22i63ai5t75s} **Shift + numpad presets** (0.77) — Caps Lock off: Shift + numpad 1–9 plays effect presets; without Shift, scenes. Caps on + Shift onto a full preset: a second press is needed to replace it (0.78).
 - [x] {3nncmqhey98f03a7vd3w} **Sound level meter** (0.76) — Settings › Recording › Sound on your input (after one take, so it's allowed): the meter moves with the signal; also in Rec ▾. Music player and a picked tab too.
 - [x] {aj1f2qesqolp85ln1w0i} **Sound in Rec ▾** (0.76) — Rec ▾ › Sound: pick a source; Settings › Recording › Sound shows the same.
-- [x] {hr757smrqn2mmmwqnow0} **Launchpad preset row** (0.73) — Settings › Launchpad layout: bottom row = presets 7 8 9 4 5 6 1 2, right button 3.
+- [x] {hr757smrqn2mmmwqnow0} **Launchpad preset row** (0.73) — Settings › Set up Launchpad: bottom row = presets 7 8 9 4 5 6 1 2, right button 3.
 - [x] {uqfogckolx2naf4ogqdd} **Shorter right column** (0.74) — no info strips under Transform and GIF (hover the headings' tags instead), Performance on one line.
 - [x] {idfxcorner} **Effects toolbar + Trig Follow** (0.74) — top-left of the effect editor: ⏻ and Trig Follow. Follow on: an F-key opens that effect in the editor; off: it doesn't.
 - [x] {le351226yqjllwldpp40} **VCR channel font** (0.74, the TTF 0.83) — TV › Channel: the number in VCR OSD Mono, soft green, held 0.8 s after the picture is back (the slider row: Number, 0.84); it looks the same as before (now drawn from the font file).
