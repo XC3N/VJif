@@ -167,6 +167,11 @@ function drawClipFx(ctx, c, g, img){
   drawClip(b, c, g, img); post.run(U, b.canvas, b, 40 + (k % 24));
   ctx.drawImage(b.canvas, 0, 0, W, H);             // (the target's transform maps the canvas, as for a layer buffer)
 }
+// a clip's picture: with Loop fade, the end of the loop's frame is drawn first and the start's frame over it at w (0..1)
+function drawClipFrames(ctx, e, g, it){
+  if (it.u !== undefined && it.w < 1) drawClipFx(ctx, e, g, fxImage(g, it.u, e));
+  drawClipFx(ctx, it.u !== undefined && it.w < 1 ? { ...e, alpha: (e.alpha ?? 1) * it.w } : e, g, fxImage(g, it.fi, e));
+}
 function drawClip(ctx, c, g, img){
   const [bw, bh] = baseSize(g, c.fit), T0 = ctx.getTransform(), base = c.tile ? T0 : null, dk = Math.hypot(T0.a, T0.b) || 1;   // dk: canvas units → device pixels
   ctx.save(); ctx.globalAlpha *= (c.alpha ?? 1); applyXf(ctx, c);
@@ -241,7 +246,8 @@ function frameList(now, ls = layers, gifs = null){
     for (const c of L.clips){
       const g = gifs ? gifs[c.pad] : pads[c.pad].gif; if (!g) continue;
       const e = effClip(c, g); if (!(e.alpha > 0)) continue;
-      items.push({ g, e, fi: frameIndex(c, g, now) });
+      const o = {}, fi = frameIndex(c, g, now, o);   // o.u / o.w: Loop fade, the frame under the dissolve and the share of the one above
+      items.push(o.u === undefined ? { g, e, fi } : { g, e, fi, u: o.u, w: o.w });
     }
     out.push({ L, items });
   }
@@ -293,7 +299,7 @@ function sceneChanged(list, frozen, black, S = sceneSig){
   S.start(); S.add(frozen); S.add(black);
   if (!frozen) for (const { L, items } of list){
     S.add('|'); S.add(L.i); S.add(L.opacity); S.add(L.blend); S.add(L.fillOn && L.fill); S.add(L.mask && L.mask.on ? L.mask.mid + (L.mask.inv ? 'i' : '') : 0); S.add(maskRev);
-    for (const { g, e, fi } of items){ S.add(';'); S.add(e.id); S.add(fi); S.add(g.fxVer); S.add(g.crisp); S.add(!!g.nofx); if (g.gfx) S.add(objSig(g.gfx)); S.add(e.x); S.add(e.y); S.add(e.sx); S.add(e.sy); S.add(e.rot); S.add(e.fit); if (g.shadow && g.shadow.on) S.add(objSig(g.shadow));
+    for (const { g, e, fi, u, w } of items){ S.add(';'); S.add(e.id); S.add(fi); S.add(u); S.add(w); S.add(g.fxVer); S.add(g.crisp); S.add(!!g.nofx); if (g.gfx) S.add(objSig(g.gfx)); S.add(e.x); S.add(e.y); S.add(e.sx); S.add(e.sy); S.add(e.rot); S.add(e.fit); if (g.shadow && g.shadow.on) S.add(objSig(g.shadow));
       S.add(e.flipX); S.add(e.flipY); S.add(e.tile); S.add(e.cl); S.add(e.ct); S.add(e.cr); S.add(e.cb); S.add(e.alpha); S.add(e.blend); S.add(e.mask && e.mask.on ? e.mask.mid + (e.mask.inv ? 'i' : '') : 0); S.add(e.H); S.add(e.S); S.add(e.V); }
   }
   return S.changed();
@@ -307,10 +313,10 @@ function render(list, ctx, slot0, LUs, zoomE = 0, xf = [RS, 0, 0, RS, 0, 0], ove
   for (let { L, items } of list){
     if (MASK_BLENDS.has(L.blend)) masked = true;
     const sub = items.some(it => (it.e.blend && it.e.blend !== 'source-over') || (L.i === BG_LAYER && it.e.mask && it.e.mask.on));   // Background's GIFs as sublayers, each with its own blend (0.94) and mask (0.99.4)
-    const drawAll = (t, its) => { for (const { g, e, fi } of its){ if (sub) t.globalCompositeOperation = e.blend || 'source-over';
+    const drawAll = (t, its) => { for (const it of its){ const { g, e } = it; if (sub) t.globalCompositeOperation = e.blend || 'source-over';
         if (sub && e.mask && e.mask.on){ const m = cmbuf; m.setTransform(RS, 0, 0, RS, 0, 0); m.globalAlpha = 1; m.globalCompositeOperation = 'source-over'; m.clearRect(0, 0, W, H);   // its own mask: cut alone, so what's under it shows through
-          drawClipFx(m, e, g, fxImage(g, fi, e)); applyMask(m, e.mask); t.save(); t.setTransform(1, 0, 0, 1, 0, 0); t.drawImage(m.canvas, 0, 0); t.restore(); }
-        else drawClipFx(t, e, g, fxImage(g, fi, e)); } if (sub) t.globalCompositeOperation = 'source-over'; };
+          drawClipFrames(m, e, g, it); applyMask(m, e.mask); t.save(); t.setTransform(1, 0, 0, 1, 0, 0); t.drawImage(m.canvas, 0, 0); t.restore(); }
+        else drawClipFrames(t, e, g, it); } if (sub) t.globalCompositeOperation = 'source-over'; };
     const LU = post && LUs[L.i];
     const ek = (1 + zoomE) * (1 + (LU && LU.zoomE || 0));   // Zoom › Each: every GIF scaled around its own centre
     if (Math.abs(ek - 1) > 1e-4) items = items.map(it => ({ ...it, e: { ...it.e, sx: it.e.sx * ek, sy: it.e.sy * ek } }));
@@ -339,10 +345,10 @@ function render(list, ctx, slot0, LUs, zoomE = 0, xf = [RS, 0, 0, RS, 0, 0], ove
     } else if (sub && L.blend === 'source-over' && (L.opacity >= 1 || vis.length === 1) && !vis.some(it => it.e.mask && it.e.mask.on) && !(L.i === BG_LAYER && L.fillOn && L.fill && !over)){
       // GIFs with their own blend on a plain layer (Normal, full opacity): each blends with everything under it on screen,
       // the GIFs below it on its layer and the layers below (0.99.26 did it for a lone GIF; 0.99.27 for all, BG-059)
-      for (const { g, e, fi } of vis){ ctx.globalCompositeOperation = e.blend || 'source-over'; drawClipFx(ctx, e, g, fxImage(g, fi, e)); }
+      for (const it of vis){ const e = it.e; ctx.globalCompositeOperation = e.blend || 'source-over'; drawClipFrames(ctx, e, it.g, it); }
     } else if (!sub && ((vis.length === 1 && !MASK_BLENDS.has(L.blend)) || (L.blend === 'source-over' && L.opacity >= 1))){   // (a mask is always flattened first: each draw of a GIF, its shadow, its tiles, would cut on its own)
       // one GIF, or Normal at full opacity: identical result drawn straight onto the target (no buffer clear + composite)
-      for (const { g, e, fi } of vis) drawClipFx(ctx, e, g, fxImage(g, fi, e));
+      for (const it of vis) drawClipFrames(ctx, it.e, it.g, it);
     } else {                                       // several: flatten into the layer buffer, then blend once
       const b = lbufs[L.i]; b.setTransform(RS, 0, 0, RS, 0, 0); b.clearRect(0, 0, W, H);
       if (sub && L.i === BG_LAYER && L.fillOn && L.fill && !over){ b.fillStyle = L.fill; b.fillRect(0, 0, W, H); }   // the GIFs blend with the colour too
