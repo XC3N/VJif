@@ -120,6 +120,8 @@ function genInit(g){
   g.src = g.frames = [cv]; g.durs = [1000]; g.w = W; g.h = H; g.srcBytes = g.bytes = 0;
   genDrawInst(g, 2, 0, 0);
 }
+// a new shader pad flows on from the hit (Free) and is scaled up smoothly; Fit would wrap the time at the Loop length, which a shader that isn't periodic shows as a jump
+function genDefaults(g){ g.sync = 'free'; g.crisp = false; }
 function genDrawInst(g, t, beat, bar){
   const cv = g.src[0], [w, h] = shSize(g.media);
   if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; g.w = W; g.h = H; }

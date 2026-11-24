@@ -105,7 +105,7 @@ function makeInst(m, saved = null){
            masks: null, maskGen: 0, maskT: 0,
            trig: 'stay', env: { a: 0.5, h: 1, r: 2, curve: 'lin', gate: false, len: 'free', every: 0 }, lfo: {} };
   insts.set(g.uid, g); if (m.gen) genInit(g); rebuildSeq(g);
-  if (saved) applyGifSettings(g, saved); else { autoFit(g); if (m.text) textDefaults(g); }
+  if (saved) applyGifSettings(g, saved); else { autoFit(g); if (m.text) textDefaults(g); if (m.gen) genDefaults(g); }
   return g;
 }
 // drop shadow under a GIF: offset (output px), blur, opacity, colour — off by default

@@ -12,6 +12,7 @@ Shader sources: a Shadertoy-style shader on a pad.
 - A shader pad plays like a GIF that never ends: `iTime` follows the tempo. Fit: one cycle = Loop length, Loop wraps it, Ping-pong turns round, Reverse runs back; Free: seconds since the hit × Speed; Step: whole steps. Transform, Blend, Colour, Mask, effects, Trigger and Auto all work on it.
 - Drawn live into a small canvas per pad (nothing stored per frame); one shared WebGL 2 context, one program per distinct code (8 kept), linked in parallel where the browser allows. Shader pads that are off or invisible cost nothing.
 - Edit shader keeps the pad's settings. Saved in sets and scenes as a `.vjshader` (a small JSON file with the code). Pool › Save as gives the code as a `.glsl` file.
+- A new shader pad starts in Free timing (it flows on from the hit and never wraps) with smooth scaling; Fit / Loop wraps its time at the Loop length on purpose.
 - Not in this version: multipass buffers, a frame-time guard, parameter sliders from `// @param` comments, other channel inputs.
 
 ## 0.99.49 — 2026/11/19

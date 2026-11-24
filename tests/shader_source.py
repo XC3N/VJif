@@ -15,6 +15,7 @@ async def main():
     await pg.evaluate("shaderOk(0)"); await pg.wait_for_function("pads[0].gif")
     r = await pg.evaluate("""(() => { const g = pads[0].gif, m = g.media; return [!!m.gen, m.type, g.src.length, g.src === g.frames, g.src[0].width, g.src[0].height, g.w, g.h, m.gen.res]; })()""")
     print('pad', r); assert r[0] and r[1] == SHADER_MIME if False else r[0], r
+    r2 = await pg.evaluate("[pads[0].gif.sync, pads[0].gif.crisp]"); assert r2 == ['free', False], r2   # a new shader pad flows on (no wrap at the Loop length)
     assert r[2] == 1 and r[3] and r[4] == 960 and r[5] == 540 and r[6] == 1920, r   # drawn at half the canvas, shown full size
     # it is drawn into the scene, and moves with the clock: two moments of the same pad give different pictures
     r = await pg.evaluate("""(() => { trigger(0); const c = layers.flatMap(L => L.clips).find(c => c.pad === 0), g = pads[0].gif, px = beat => { clock.beat = c.startBeat + beat; const now = performance.now() + beat * 500;
