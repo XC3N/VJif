@@ -17,6 +17,7 @@ async function decodeOne(blob, name, scale = 1){
     const spec = JSON.parse(await blob.text()), r = await renderText(spec);
     return { name: name || textName(spec), blob, type: TEXT_MIME, text: spec, ...r };
   }
+  if (isShaderBlob(blob, name)) return decodeShader(blob, name);   // a shader: drawn live by shader.js
   if (!('ImageDecoder' in window)) throw new Error('this browser has no ImageDecoder (use Chrome)');
   const type = (blob.type && blob.type.startsWith('image/')) ? blob.type : guessType(name);
   if (!(await ImageDecoder.isTypeSupported(type))) throw new Error('unsupported type ' + type);
@@ -84,7 +85,7 @@ function gridOf(hist, len){
 }
 // a GIF's frames kept at ½ or ¼ of their pixels: same size on screen (drawn scaled up), a quarter / a sixteenth of the memory
 async function setMediaScale(m, sc){
-  if (m.text || (m.scale || 1) === sc) return;
+  if (m.text || m.gen || (m.scale || 1) === sc) return;
   const r = await decodeAnim(m.blob, m.name, sc), old = m.src;
   Object.assign(m, { src: r.src, srcBytes: r.srcBytes, rawBytes: r.rawBytes, scale: sc });
   insts.forEach(g => { if (g.media !== m) return;
@@ -103,7 +104,7 @@ function makeInst(m, saved = null){
            key: { on: false, color: [0, 255, 0], tol: 0, soft: 0, region: 'all', seed: null }, hsv: { h: 0, s: 1, v: 1, off: true }, pal: { i: -1, d: 0 }, shadow: { ...SHADOW_DEF }, swap: [], swapMerge: 0, fxVer: 0, keyGen: 0, keyT: 0, keyMsg: '',
            masks: null, maskGen: 0, maskT: 0,
            trig: 'stay', env: { a: 0.5, h: 1, r: 2, curve: 'lin', gate: false, len: 'free', every: 0 }, lfo: {} };
-  insts.set(g.uid, g); rebuildSeq(g);
+  insts.set(g.uid, g); if (m.gen) genInit(g); rebuildSeq(g);
   if (saved) applyGifSettings(g, saved); else { autoFit(g); if (m.text) textDefaults(g); }
   return g;
 }
@@ -300,6 +301,7 @@ const POOL_MIME = 'application/x-vjif-pool', POOL_ONLY = -2;
 // the original file, as loaded (not the decoded, resized frames)
 async function poolSaveAs(m){
   if (m.text) return toast('A text has no file to save');
+  if (m.gen){ const sp = m.gen; return saveFile(new Blob([sp.code], { type: 'text/plain' }), (sp.name || 'shader').replace(/[^\w .-]+/g, '_') + '.glsl'); }   // the code, as Shadertoy text
   const ext = (m.name.match(/\.(gif|webp|png|apng)$/i) || [, (m.blob.type.split('/')[1] || 'gif')])[1].toLowerCase(), name = /\.\w+$/.test(m.name) ? m.name : m.name + '.' + ext;
   if (window.showSaveFilePicker){
     try { const h = await showSaveFilePicker({ suggestedName: name, types: [{ description: ext.toUpperCase() + ' image', accept: { [m.blob.type || 'image/gif']: ['.' + ext] } }] });

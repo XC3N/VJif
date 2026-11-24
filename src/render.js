@@ -1,6 +1,6 @@
 // ---------- geometry ----------
 function baseSize(g, fit){
-  if (fit === 'auto' && g.media && g.media.text) return [g.w, g.h];   // lettering is drawn at output size
+  if (fit === 'auto' && g.media && (g.media.text || g.media.gen)) return [g.w, g.h];   // lettering is drawn at output size
   if (fit === 'auto'){
     // native pixels; big GIFs shrink to fit the frame, small sprites grow by a whole factor up to ~1/3 frame height
     if (g.w > W || g.h > H){ const s = Math.min(W / g.w, H / g.h); return [g.w * s, g.h * s]; }
@@ -246,6 +246,7 @@ function frameList(now, ls = layers, gifs = null){
     for (const c of L.clips){
       const g = gifs ? gifs[c.pad] : pads[c.pad].gif; if (!g) continue;
       const e = effClip(c, g); if (!(e.alpha > 0)) continue;
+      if (g.gen) genUpdate(c, g, now);   // a shader pad: drawn for this moment before the picture is made
       const o = {}, fi = frameIndex(c, g, now, o);   // o.u / o.w: Loop fade, the frame under the dissolve and the share of the one above
       items.push(o.u === undefined ? { g, e, fi } : { g, e, fi, u: o.u, w: o.w });
     }
@@ -299,7 +300,7 @@ function sceneChanged(list, frozen, black, S = sceneSig){
   S.start(); S.add(frozen); S.add(black);
   if (!frozen) for (const { L, items } of list){
     S.add('|'); S.add(L.i); S.add(L.opacity); S.add(L.blend); S.add(L.fillOn && L.fill); S.add(L.mask && L.mask.on ? L.mask.mid + (L.mask.inv ? 'i' : '') : 0); S.add(maskRev);
-    for (const { g, e, fi, u, w } of items){ S.add(';'); S.add(e.id); S.add(fi); S.add(u); S.add(w); S.add(g.fxVer); S.add(g.crisp); S.add(!!g.nofx); if (g.gfx) S.add(objSig(g.gfx)); S.add(e.x); S.add(e.y); S.add(e.sx); S.add(e.sy); S.add(e.rot); S.add(e.fit); if (g.shadow && g.shadow.on) S.add(objSig(g.shadow));
+    for (const { g, e, fi, u, w } of items){ S.add(';'); S.add(e.id); S.add(fi); S.add(g.genT); S.add(u); S.add(w); S.add(g.fxVer); S.add(g.crisp); S.add(!!g.nofx); if (g.gfx) S.add(objSig(g.gfx)); S.add(e.x); S.add(e.y); S.add(e.sx); S.add(e.sy); S.add(e.rot); S.add(e.fit); if (g.shadow && g.shadow.on) S.add(objSig(g.shadow));
       S.add(e.flipX); S.add(e.flipY); S.add(e.tile); S.add(e.cl); S.add(e.ct); S.add(e.cr); S.add(e.cb); S.add(e.alpha); S.add(e.blend); S.add(e.mask && e.mask.on ? e.mask.mid + (e.mask.inv ? 'i' : '') : 0); S.add(e.H); S.add(e.S); S.add(e.V); }
   }
   return S.changed();

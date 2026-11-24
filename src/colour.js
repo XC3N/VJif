@@ -92,7 +92,7 @@ function fxImage(g, fi, e){
   const auto = e && (e.H !== undefined || e.S !== undefined || e.V !== undefined);
   if (!auto && !fxActive(g)) return g.frames[fi];
   const base = g.fxP || (g.fxP = fxParams(g)), mask = g.key.on && g.key.region !== 'all' && g.masks ? g.masks[fi] : null;
-  if (auto){                                         // automated colour changes every frame: nothing worth keeping
+  if (auto || g.gen){                                // automated colour changes every frame (and a shader's picture changes every frame): nothing worth keeping
     const B = hsvOf(g), h = B.h + (e.H ?? 0), s = B.s * (e.S ?? 1), v = B.v * (e.V ?? 1);
     return fxGL.render(g.frames[fi], Object.assign({}, base, { doHsv: h !== 0 || s !== 1 || v !== 1, H: h, S: s, V: v }), mask);
   }

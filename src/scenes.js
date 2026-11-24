@@ -362,7 +362,7 @@ async function importScene(file, at = -1){
     for (const e of o.pool){
       const data = e.file && zf.get(e.file); if (!data){ missing++; continue; }
       const ext = (e.file.match(/\.(\w+)$/) || [, 'gif'])[1].toLowerCase();
-      const blob = new Blob([data], { type: ext === 'vjtext' ? TEXT_MIME : ext === 'webp' ? 'image/webp' : ext === 'png' ? 'image/png' : 'image/gif' });
+      const blob = new Blob([data], { type: ext === 'vjtext' ? TEXT_MIME : ext === 'vjshader' ? SHADER_MIME : ext === 'webp' ? 'image/webp' : ext === 'png' ? 'image/png' : 'image/gif' });
       const m = await mediaFor(blob, e.name, gen); if ((m.scale || 1) !== (e.scale || 1)) await setMediaScale(m, e.scale || 1); byHash.set(e.hash, m);
     }
     const mk = sp => { const m = sp && byHash.get(sp.hash); if (!m) return null; const g = makeInst(m, sp); if (g.key.on || hsvOn(g)) applyFx(g); return g; };

@@ -407,7 +407,7 @@ async function importVjif(file){ await setsReady;
         const data = files.get(sp.file);
         if (!data){ missing++; byFile.set(sp.file, null); continue; }
         const ext = (sp.file.match(/\.(\w+)$/) || [, 'gif'])[1].toLowerCase();
-        const blob = new Blob([data], { type: ext === 'vjtext' ? TEXT_MIME : ext === 'webp' ? 'image/webp' : ext === 'png' ? 'image/png' : 'image/gif' });
+        const blob = new Blob([data], { type: ext === 'vjtext' ? TEXT_MIME : ext === 'vjshader' ? SHADER_MIME : ext === 'webp' ? 'image/webp' : ext === 'png' ? 'image/png' : 'image/gif' });
         const h = await hashBlob(blob); byFile.set(sp.file, h);
         await store.put('gif:' + h, { name: sp.name, blob });
       }

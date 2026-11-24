@@ -127,7 +127,7 @@ function setFormat(k, { quiet = false, force = false } = {}){
     if (!force){ toast('Stop recording before changing the canvas format'); return syncFormatUI(); }
     recCancelWait(); recStop(); toast('Recording stopped: the loaded set has another canvas format');   // a set's format wins (it's part of the set)
   }
-  format = k; [W, H] = FORMATS[k]; retextAll();
+  format = k; [W, H] = FORMATS[k]; retextAll(); reshadeAll();
   sizeCanvases();
   live.freeze = false; live.freezeReq = false; updLiveTag(); endTrans();
   if (outWin && !outWin.closed && !outPip && !outWin.document.fullscreenElement){ const D = outDefault();

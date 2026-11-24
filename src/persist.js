@@ -342,7 +342,7 @@ async function readZip(blob){                        // → Map(name → Uint8Ar
   }
   return out;
 }
-const EXT = { 'image/gif': 'gif', 'image/webp': 'webp', 'image/png': 'png', 'image/apng': 'png', 'application/vnd.vjif.text+json': 'vjtext' };
+const EXT = { 'image/gif': 'gif', 'image/webp': 'webp', 'image/png': 'png', 'image/apng': 'png', 'application/vnd.vjif.text+json': 'vjtext', 'application/vnd.vjif.shader+json': 'vjshader' };
 async function exportSet(name, snap){
   const st = upgradeSnap(JSON.parse(snap)), files = [], byHash = new Map(), enc = new TextEncoder();
   for (const sp of st.pool){
