@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       test_ref:
-        description: Branch or SHA to publish at /test/ (default: the `test` branch)
+        description: 'Branch or SHA to publish at /test/ (default is the test branch)'
         required: false
 permissions:
   contents: read
