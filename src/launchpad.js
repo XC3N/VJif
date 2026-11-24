@@ -4,7 +4,7 @@
 // Mechanically: the Launchpad is put in Programmer mode (a SysEx message), where each pad / button is one note or CC
 // whose number is also its LED's number; colours go out as RGB SysEx (0–127 per channel), only for LEDs that changed.
 const LP_MODELS = [[/LPProMK3|Launchpad Pro MK3/i, 0x0E, 'Launchpad Pro MK3'], [/LPX|Launchpad X/i, 0x0C, 'Launchpad X'], [/LPMiniMK3|Launchpad Mini MK3/i, 0x0D, 'Launchpad Mini MK3']];
-const lp = { on: Prefs.get('vjif-lights') === '1', out: null, dev: 0, name: '', sent: new Map(), timer: 0, access: null };
+const lp = { on: false, out: null, dev: 0, name: '', sent: new Map(), timer: 0, access: null };
 const lpSys = (...b) => { if (lp.out) try { lp.out.send([0xF0, 0x00, 0x20, 0x29, 0x02, lp.dev, ...b, 0xF7]); } catch (e) {} };
 // the Launchpad's own MIDI port (not its DIN or DAW ports)
 function lpFind(acc){
@@ -30,14 +30,13 @@ function lpConnect(){
 function lpAllOff(){ const s = []; for (let i = 1; i <= 108; i++) s.push(3, i, 0, 0, 0); lpSys(0x03, ...s); lp.sent.clear(); }
 function lpStop(){ if (lp.out){ lpAllOff(); lpSys(0x0E, 0x00); } lp.out = null; lpUI(); }   // back to the Launchpad's own Live mode
 function lpSetOn(on){
-  lp.on = on; Prefs.set('vjif-lights', on ? '1' : '0');
+  lp.on = on;
   clearInterval(lp.timer); lp.timer = 0;
   if (on){ lpStart(); lp.timer = setInterval(lpTick, 50); } else lpStop();
   lpUI();
 }
 function lpUI(){
-  const c = $('#lpOn'); if (!c) return; c.checked = lp.on;
-  $('#lpStat').textContent = !lp.on ? '' : lp.out ? lp.name : 'no Launchpad found (plug it in)';
+  $('#lpStat').textContent = !lp.on ? 'lights off (MIDI SysEx not allowed)' : lp.out ? lp.name : 'no Launchpad found (plug it in)';
 }
 // every kind of control has its own solid colour, so the grid reads as regions; brightness says the state:
 // full = playing / on / live, LP_MID = loaded / has something, LP_LOW = empty (still shows where the region is)
@@ -105,7 +104,7 @@ function lpLayout(){
   const keys = new Set(map.map(m => m.key)), was = new Set([91, 92, 93, 94, 80, 70].map(cc));
   midiCtl.map = midiCtl.map.filter(m => !keys.has(m.key) && !(was.has(m.key) && (m.t === 'scbank' || m.t === 'padbank'))).concat(map); saveMidiCtl(); renderMidiCtl(); markLearn();   // (the arrows' earlier places are cleared)
   if (!midiAccess) getMidi().then(() => { bindCtlInputs(); fillMidi(); renderMidiCtl(); }).catch(() => {});
-  toast2(`Launchpad layout loaded: ${map.length} pads and buttons mapped (your other mappings are kept)`);
+  toast2(`Launchpad set up: ${map.length} pads and buttons mapped (your other mappings are kept)`);
 }
 // ---- Launchpad map: the Pro MK3's pads and buttons in Programmer mode, with what each one is mapped to ----
 // grid pads send notes 11–88 (row·10 + column, row 1 at the bottom); the buttons around it send CCs: top row 91–98,
@@ -141,6 +140,5 @@ function lpMapOpen(){ $('#lpMapBody').innerHTML = lpMapHTML(); document.body.app
 $('#lpMapClose').addEventListener('click', () => { $('#lpMapPanel').hidden = true; });
 $('#lpMapPanel').addEventListener('pointerdown', e => { if (e.target.id === 'lpMapPanel') $('#lpMapPanel').hidden = true; });
 document.querySelectorAll('.lpMapBtn').forEach(b => b.addEventListener('click', lpMapOpen));
-$('#lpOn').addEventListener('change', e => lpSetOn(e.target.checked));
 $('#lpLayout').addEventListener('click', lpLayout);
-if (lp.on){ lp.on = false; setTimeout(() => lpSetOn(true), 500); }   // lights were on last time: back on once VJif is up
+setTimeout(() => lpSetOn(true), 500);   // lights are always on: they follow a Launchpad whenever one is plugged in
