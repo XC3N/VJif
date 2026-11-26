@@ -116,10 +116,20 @@ function shDraw(code, w, h, t, beat, bar, frame, dt, pv){
   return cv;
 }
 // compile now and draw one tiny frame: false-y when it is fine, else the message. (A new pad has to pass this before it is shown.)
-function shCheck(code){
-  if (!String(code).trim()) return 'The shader has no code';
-  if (!/\bmainImage\s*\(/.test(code)) return 'The code needs a function  void mainImage(out vec4 fragColor, in vec2 fragCoord)';
+const shPre = code => !String(code).trim() ? 'The shader has no code' : !/\bmainImage\s*\(/.test(code) ? 'The code needs a function  void mainImage(out vec4 fragColor, in vec2 fragCoord)' : '';
+function shCheck(code){   // (waits for the compile with the page stopped: Direct3D can take tens of seconds on a long shader. The window and Add use shCheckAsync)
+  const pre = shPre(code); if (pre) return pre;
   const e = shProgram(code); if (e.state === 'wait'){ const gl = SH.gl; gl.getProgramParameter(e.p, gl.LINK_STATUS); shSettle(e); if (e.state === 'wait'){ while (!shSettle(e)); } }   // (asking for the link status waits for it)
+  if (e.state === 'err') return e.err;
+  return shDraw(code, 16, 9, 1, 0, 0, 0, 0) ? '' : 'The shader could not be drawn';
+}
+// The same check without stopping the page: the program is started and looked at again every 40 ms until it has linked (an edit that is replaced
+// meanwhile, or a program let go by the cache of a few, ends the wait). Opening the window or typing in it never freezes the browser.
+function shWhen(e){ return new Promise(res => { const step = () => { if (SH.progs.get(e.code) !== e || shSettle(e)) res(); else setTimeout(step, 40); }; step(); }); }
+async function shCheckAsync(code){
+  const pre = shPre(code); if (pre) return pre;
+  const e = shProgram(code); await shWhen(e);
+  if (e.state === 'wait') return 'The code changed while it was compiling';
   if (e.state === 'err') return e.err;
   return shDraw(code, 16, 9, 1, 0, 0, 0, 0) ? '' : 'The shader could not be drawn';
 }
@@ -274,9 +284,13 @@ function shUI(){
   $('#shRes').title = `Drawn at ${shSize({ gen: shSpec }).join('×')} and scaled up`;
   clearTimeout(shDeb); shDeb = setTimeout(shCompile, 250);
 }
-function shCompile(){
-  shRead(); const err = shCheck(shSpec.code); shLast = shSpec.code;
-  const e = !err && SH.progs.get(shSpec.code), sl = e && e.sliderErr ? ' (no sliders: ' + e.sliderErr.replace(/^line \d+: /, '') + ')' : '';
+let shTok = 0;
+async function shCompile(){
+  shRead(); const code = shSpec.code, tok = ++shTok;
+  $('#shErr').textContent = 'Compiling…'; $('#shErr').classList.remove('bad'); $('#shOk').disabled = true; $('#shDrag').classList.add('dimmed');
+  const err = await shCheckAsync(code); if (tok !== shTok) return;   // edited again meanwhile: that edit's check answers
+  shLast = code;
+  const e = !err && SH.progs.get(code), sl = e && e.sliderErr ? ' (no sliders: ' + e.sliderErr.replace(/^line \d+: /, '') + ')' : '';
   $('#shErr').textContent = err || 'Compiles' + sl; $('#shErr').classList.toggle('bad', !!err); shParamRows(e ? e.params : []); $('#shOk').disabled = !!err; $('#shDrag').classList.toggle('dimmed', !!err);
 }
 function shLoop(){   // the window's preview: the shader at its own render size, on the wall clock and the tempo
@@ -290,8 +304,8 @@ function shLoop(){   // the window's preview: the shader at its own render size,
   shRaf = requestAnimationFrame(shLoop);
 }
 async function shaderOk(target = -1){
-  shRead(); const err = shCheck(shSpec.code); if (err) return toast('The shader has an error: ' + err.split('\n')[0]);
-  const spec = { ...shSpec, v: 1 }, blob = new Blob([JSON.stringify(spec)], { type: SHADER_MIME }), name = shaderName(spec), edit = shEdit;
+  shRead(); const sp = { ...shSpec }, edit = shEdit, err = await shCheckAsync(sp.code); if (err) return toast('The shader has an error: ' + err.split('\n')[0]);
+  const spec = { ...sp, v: 1 }, blob = new Blob([JSON.stringify(spec)], { type: SHADER_MIME }), name = shaderName(spec);
   closeShader();
   try {
     const m = await mediaFor(blob, name);
