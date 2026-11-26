@@ -39,6 +39,25 @@ async def main():
     # resolution: Full / ½ / ¼ change the canvas an instance draws into
     r = await pg.evaluate("""(async () => { const out = []; for (const res of [1, 0.25]){ openShader(0); shSpec.res = res; await shaderOk(); const g = pads[0].gif; trigger(0); const c = layers.flatMap(L => L.clips).find(c => c.pad === 0); genUpdate(c, g, performance.now()); out.push(g.src[0].width); } return out; })()""")
     print('res', r); assert r == [1920, 480], r
+    # variables as sliders: literals found (integers only when hinted), the line count kept, a sensible range; a hinted int that
+    # breaks the shader (a loop bound) falls back to the code as written, with the sliders off
+    r = await pg.evaluate("""(() => { const P = shParse(['#define A 1.5', '#define N 5', '#define M 4 // @param 1 8', 'const float B = -0.5; // @param -2 2', 'const float PI = 3.14;', '#define A 9.0', 'void mainImage(out vec4 c, in vec2 f){}'].join('\\n'));
+      return [P.params.map(q => [q.name, q.val, q.min, q.max]), P.code.split('\\n').length, P.code.split('\\n')[0]]; })()""")
+    print('parse', r); assert r[0] == [['A', 1.5, 0, 5], ['M', 4, 1, 8], ['B', -0.5, -2, 2]] and r[1] == 7 and r[2] == '#define A vjP_A', r
+    r = await pg.evaluate("""(() => { const code = '#define N 4 // @param 1 8\\nvoid mainImage(out vec4 c, in vec2 f){ float s = 0.0; for (int i = 0; i < N; i++) s += 0.1; c = vec4(vec3(s), 1.0); }';
+      const err = shCheck(code), e = SH.progs.get(code); return [err, e.params.length, !!e.sliderErr]; })()""")
+    print('fallback', r); assert r[0] == '' and r[1] == 0 and r[2], r
+    # a bundled shader has its sliders; moving one changes the picture of the pad without a recompile; saved, copied
+    r = await pg.evaluate("""(async () => { openShader(-1); $('#shPreset').value = '2'; $('#shPreset').dispatchEvent(new Event('change')); await new Promise(r => setTimeout(r, 500));
+      const rows = [...document.querySelectorAll('#shParams input')].map(i => i.dataset.n); await shaderOk(3); const g = pads[3].gif; trigger(3); const c = layers.flatMap(L => L.clips).find(c => c.pad === 3);
+      const sum = () => { genUpdate(c, g, performance.now()); const x = new OffscreenCanvas(32, 18).getContext('2d', { willReadFrequently: true }); x.drawImage(g.src[0], 0, 0, 32, 18); return [...x.getImageData(0, 0, 32, 18).data].reduce((a, b) => a + b, 0); };
+      g.sync = 'step'; clock.beat = c.startBeat + 1; const a = sum(); g.gp = { HUE: 0.5 }; g.gpRev = 2; const b = sum();
+      const cl = cloneInst(g), sv = gifSettings(g).gp; return [rows, a !== b, cl.gp, sv]; })()""")
+    print('sliders', r); assert r[0] == ['SCALE', 'SPEED', 'HUE'] and r[1] and r[2] == {'HUE': 0.5} and r[3] == {'HUE': 0.5}, r
+    # the window: editing a pad starts from its values, a slider moves the pad at once, Reset goes back
+    r = await pg.evaluate("""(async () => { openShader(3); await new Promise(r => setTimeout(r, 500)); const i = $('#shp_HUE'), v0 = +i.value; i.value = 0.8; i.dispatchEvent(new Event('input', { bubbles: true }));
+      const a = pads[3].gif.gp.HUE; $('#shReset').click(); await new Promise(r => setTimeout(r, 500)); const b = Object.keys(pads[3].gif.gp).length; closeShader(); return [v0, a, b]; })()""")
+    print('window', r); assert r == [0.5, 0.8, 0], r
     # a shader that does not compile never gets onto a pad
     r = await pg.evaluate("""(async () => { openShader(-1); $('#shCode').value = 'void mainImage(out vec4 c, in vec2 f){ c = vec3(1.0); }'; shRead(); const before = pool.length; await shaderOk(2); return [before === pool.length, !pads[2].gif]; })()""")
     print('bad', r); assert r == [True, True], r

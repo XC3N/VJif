@@ -351,12 +351,14 @@
   </div>
 </div>
 <div id="shaderPanel" class="modal" hidden>
-  <div class="modalBox" style="width:min(680px,94vw)">
+  <div class="modalBox" style="width:min(560px,94vw)">
     <h2>Shader<span id="shTo" class="tag"></span><span class="line"></span><button id="shClose" class="iconbtn" title="Close (Esc)">×</button></h2>
     <canvas id="shPrev" width="480" height="270"></canvas>
     <div class="field"><label for="shPreset">Start from</label><div class="txRow"><select id="shPreset" title="A bundled shader to start from"></select><input id="shName" type="text" placeholder="Name" spellcheck="false" style="width:9em"></div></div>
     <textarea id="shCode" rows="12" spellcheck="false" placeholder="void mainImage(out vec4 fragColor, in vec2 fragCoord){ ... }  (paste a Shadertoy shader)"></textarea>
     <div id="shErr" class="shErr"></div>
+    <div class="field"><label>Variables</label><button id="shReset" title="Back to the values written in the code">Reset values</button></div>
+    <div id="shParams"></div>
     <div class="field"><label>Drawn at</label><div class="seg" id="shRes" title="Render size: the picture is drawn this small and scaled up"><button data-v="1">Full</button><button data-v="0.5">½</button><button data-v="0.25">¼</button></div></div>
     <div class="row" style="justify-content:flex-end"><span id="shDrag" class="txchip" title="Drag onto a pad · a click: the next empty pad">Drag onto a pad</span><button id="shOk" class="accent">Update</button></div>
   </div>

@@ -13,7 +13,9 @@ Shader sources: a Shadertoy-style shader on a pad.
 - Drawn live into a small canvas per pad (nothing stored per frame); one shared WebGL 2 context, one program per distinct code (8 kept), linked in parallel where the browser allows. Shader pads that are off or invisible cost nothing.
 - Edit shader keeps the pad's settings. Saved in sets and scenes as a `.vjshader` (a small JSON file with the code). Pool › Save as gives the code as a `.glsl` file.
 - A new shader pad starts in Free timing (it flows on from the hit and never wraps) with smooth scaling; Fit / Loop wraps its time at the Loop length on purpose.
-- Not in this version: multipass buffers, a frame-time guard, parameter sliders from `// @param` comments, other channel inputs.
+- Variables as sliders: a line like `#define SPEED 0.5` or `const float SPEED = 0.5;` in the code becomes a slider in the Shader window (decimal literals; integers only with a hint, as they are often loop counts). A trailing `// @param min max` sets the range, else it is 0 to about 3× the value. The slider moves a uniform, so there is no recompile and the picture follows at once, in the window's preview and on the pad being edited. Values are kept with the pad (sets, copies); Reset values goes back to the code's own. If a variable can't be a uniform where the code uses it, the shader runs as written and says no sliders. The bundled shaders have theirs.
+- The Shader window is now a floating window like the pool: the pads stay playable behind it (Esc closes it).
+- Not in this version: multipass buffers, a frame-time guard, LFOs on the variables, colour pickers for vec3 values, other channel inputs.
 
 ## 0.99.49 — 2026/11/19
 

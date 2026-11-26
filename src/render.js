@@ -300,7 +300,7 @@ function sceneChanged(list, frozen, black, S = sceneSig){
   S.start(); S.add(frozen); S.add(black);
   if (!frozen) for (const { L, items } of list){
     S.add('|'); S.add(L.i); S.add(L.opacity); S.add(L.blend); S.add(L.fillOn && L.fill); S.add(L.mask && L.mask.on ? L.mask.mid + (L.mask.inv ? 'i' : '') : 0); S.add(maskRev);
-    for (const { g, e, fi, u, w } of items){ S.add(';'); S.add(e.id); S.add(fi); S.add(g.genT); S.add(u); S.add(w); S.add(g.fxVer); S.add(g.crisp); S.add(!!g.nofx); if (g.gfx) S.add(objSig(g.gfx)); S.add(e.x); S.add(e.y); S.add(e.sx); S.add(e.sy); S.add(e.rot); S.add(e.fit); if (g.shadow && g.shadow.on) S.add(objSig(g.shadow));
+    for (const { g, e, fi, u, w } of items){ S.add(';'); S.add(e.id); S.add(fi); S.add(g.genT); S.add(g.gpRev); S.add(u); S.add(w); S.add(g.fxVer); S.add(g.crisp); S.add(!!g.nofx); if (g.gfx) S.add(objSig(g.gfx)); S.add(e.x); S.add(e.y); S.add(e.sx); S.add(e.sy); S.add(e.rot); S.add(e.fit); if (g.shadow && g.shadow.on) S.add(objSig(g.shadow));
       S.add(e.flipX); S.add(e.flipY); S.add(e.tile); S.add(e.cl); S.add(e.ct); S.add(e.cr); S.add(e.cb); S.add(e.alpha); S.add(e.blend); S.add(e.mask && e.mask.on ? e.mask.mid + (e.mask.inv ? 'i' : '') : 0); S.add(e.H); S.add(e.S); S.add(e.V); }
   }
   return S.changed();
