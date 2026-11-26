@@ -159,7 +159,9 @@ function genDrawInst(g, t, beat, bar){
   if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; g.w = W; g.h = H; }
   const now = performance.now(), dt = g.genAt ? Math.min(0.25, (now - g.genAt) / 1000) : 0; g.genAt = now;
   const r = shDraw(g.gen.code, w, h, t, beat, bar, g.genF++, dt, g.gp);
-  if (r) g.genCx.drawImage(r, 0, 0);
+  if (r){ g.genCx.drawImage(r, 0, 0);
+    const m = g.media; if (!m.stillOk){ m.stillOk = true;   // the pool's and the pad tile's picture: the first real frame
+      createImageBitmap(g.src[0]).then(bm => { const old = m.src; m.src = [bm]; old.forEach(f => f.close()); pads.forEach(p => p.gif && p.gif.media === m && renderPad(p.i)); renderPool(); }); } }
 }
 // every frame, for each visible shader clip (render.js frameList): redraw when the time moved
 function genUpdate(c, g, now){
@@ -169,13 +171,14 @@ function genUpdate(c, g, now){
 
 // ---- media: a decoded shader file ----
 async function decodeShader(blob, name){
+  // Nothing is compiled here: a set with shader pads loads without waiting for the GPU. The window checks a shader before it is added (shaderOk);
+  // the tile shows a dark placeholder until the pad first draws, then its real picture (genDrawInst).
   const spec = { ...SHADER_DEF, ...JSON.parse(await blob.text()) };
   if (!SHADER_RES.includes(spec.res)) spec.res = 0.5;
-  const err = shCheck(spec.code); if (err) throw new Error(err);
-  const [w, h] = shSize({ gen: spec }), cv = new OffscreenCanvas(w, h), x = cv.getContext('2d'), r = shDraw(spec.code, w, h, 2, 0, 0, 0, 0);
-  if (r) x.drawImage(r, 0, 0);
-  const bmp = await createImageBitmap(cv);   // the still the pool and pad tiles show
-  return { name: name || shaderName(spec), blob, type: SHADER_MIME, gen: spec, src: [bmp], durs: [1000], w: W, h: H, srcBytes: w * h * 4 };
+  if (!/\bmainImage\s*\(/.test(spec.code || '')) throw new Error('The code needs a function  void mainImage(out vec4 fragColor, in vec2 fragCoord)');
+  const cv = new OffscreenCanvas(32, 18), x = cv.getContext('2d'); x.fillStyle = '#101018'; x.fillRect(0, 0, 32, 18);
+  const bmp = await createImageBitmap(cv);
+  return { name: name || shaderName(spec), blob, type: SHADER_MIME, gen: spec, src: [bmp], durs: [1000], w: W, h: H, srcBytes: 32 * 18 * 4 };
 }
 // the canvas format changed: the pool's stills are drawn again, the instances follow on their next frame
 async function reshadeAll(){
