@@ -125,7 +125,7 @@ function shCheck(code){
 }
 
 // ---- time: iTime from the BPM clock ----
-// Free: seconds since the hit × Speed. Fit: one cycle = Loop length in beats (Loop wraps it, Ping-pong turns round, Reverse runs back).
+// Free: seconds since the hit × Speed. Fit: Loop keeps flowing; Ping-pong turns round after the Loop length (beats), Reverse runs back.
 // Step: beats counted in whole steps. iBeat: beats since the hit, wrapped like the time; iBar: the position in the bar, 0..1.
 function shTimes(c, g, now){
   let b = clock.beat - c.startBeat; if (g.restart) b = mod(b, g.restart);
@@ -137,7 +137,7 @@ function shTimes(c, g, now){
     if (S === 'stretch'){
       if (g.loop === 'pingpong'){ const q = mod(b, 2 * P); b = q > P ? 2 * P - q : q; }
       else if (g.loop === 'reverse') b = P - mod(b, P);
-      else b = mod(b, P);
+      // Loop: the time just keeps flowing (a shader that isn't periodic would jump at a wrap); the Loop length only matters for Ping-pong and Reverse
     }
     t = b * 60 / clock.bpm * (S === 'step' ? g.speed : 1);
   }

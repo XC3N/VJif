@@ -23,7 +23,7 @@ async def main():
       g.sync = 'stretch'; g.beats = 4; g.loop = 'loop'; const a = px(0.7), b2 = px(1.9), wrap = px(0.7 + 4); return [a, b2, wrap]; })()""")
     print('time', r); a, b2, wrap = r
     assert a[1] > 100 and a[0] != b2[0], r              # something is drawn, and it changes with the beat
-    assert a[0] == wrap[0], r                           # Fit + Loop: one cycle is Loop length, then it starts again identically
+    assert a[0] != wrap[0], r                           # Fit + Loop: the time flows on past the Loop length (no jump back to the start)
     # Ping-pong turns round: beat x and 2*cycle - x look the same
     r = await pg.evaluate("""(() => { const c = layers.flatMap(L => L.clips).find(c => c.pad === 0), g = pads[0].gif; g.loop = 'pingpong'; const a = shTimes({ startBeat: 0 }, g, 0), q = []; for (const bt of [1, 7]){ clock.beat = bt; q.push(shTimes({ startBeat: 0 }, g, 0).beat); } return q; })()""")
     print('pingpong', r); assert r == [1, 1], r
