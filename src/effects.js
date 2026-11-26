@@ -498,7 +498,10 @@ ${FX_GLSL}
         if (IS(mirS, S_mirror_quad)) return vec2(p.x < 0.5 ? p.x : 1.0 - p.x, p.y < 0.5 ? p.y : 1.0 - p.y);
         vec2 a = A(), c = vec2(0.5) + vec2(mirX, mirY), d = (p - c) * a / max(mirZ, 1.0); float r = length(d), seg = 6.2831853 / max(mirN, 2.0), an = mod(atan(d.y, d.x) + (mirA < 0.0 ? time * 0.1 : mirA * 0.017453293), seg);
         an = mirK > 0.5 ? abs(an - seg * 0.5) : an;   // (0.99.21: Mirror off: the same wedge repeated all round, not flipped)
-        return vec2(cos(an), sin(an)) * r / a + c;   // (0.99.49: c is the kaleidoscope's centre, offset by Centre X / Y)
+        // 0.100: with the centre moved, the slice read from the picture turns to face the middle of the frame (eased in over the first 15% of the move):
+        // it always pointed the same way, so a centre at the top edge read only from outside the frame, and the whole effect went black
+        vec2 toMid = (vec2(0.5) - c) * a; float psi = smoothstep(0.0, 0.15, length(vec2(mirX, mirY))) * (atan(toMid.y, toMid.x) - seg * (mirK > 0.5 ? 0.25 : 0.5));
+        return vec2(cos(an + psi), sin(an + psi)) * r / a + c;   // (0.99.49: c is the kaleidoscope's centre, offset by Centre X / Y)
       }
       vec2 kf(vec2 p){ return mirror > 0.001 ? fold(p) : p; }   // 0.99.45: Mirror / Kaleido for the extra reads Glitch and Codec make (they read the unfolded frame, so Codec wiped the fold out)
       float bayer2(vec2 a){ a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }

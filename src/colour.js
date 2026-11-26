@@ -93,7 +93,7 @@ function fxImage(g, fi, e){
   if (!auto && !fxActive(g)) return g.frames[fi];
   const base = g.fxP || (g.fxP = fxParams(g)), mask = g.key.on && g.key.region !== 'all' && g.masks ? g.masks[fi] : null;
   if (auto || g.gen){                                // automated colour changes every frame (and a shader's picture changes every frame): nothing worth keeping
-    const B = hsvOf(g), h = B.h + (e.H ?? 0), s = B.s * (e.S ?? 1), v = B.v * (e.V ?? 1);
+    const B = hsvOf(g), h = B.h + (e ? e.H ?? 0 : 0), s = B.s * (e ? e.S ?? 1 : 1), v = B.v * (e ? e.V ?? 1 : 1);
     return fxGL.render(g.frames[fi], Object.assign({}, base, { doHsv: h !== 0 || s !== 1 || v !== 1, H: h, S: s, V: v }), mask);
   }
   let C = g.fxC; if (!C || C.p !== base || C.m !== g.masks) C = g.fxC = { p: base, m: g.masks, map: new Map(), order: [] };   // new colour settings or masks: start over
