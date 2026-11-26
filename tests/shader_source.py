@@ -58,6 +58,15 @@ async def main():
     r = await pg.evaluate("""(async () => { openShader(3); await new Promise(r => setTimeout(r, 500)); const i = $('#shp_HUE'), v0 = +i.value; i.value = 0.8; i.dispatchEvent(new Event('input', { bubbles: true }));
       const a = pads[3].gif.gp.HUE; $('#shReset').click(); await new Promise(r => setTimeout(r, 500)); const b = Object.keys(pads[3].gif.gp).length; closeShader(); return [v0, a, b]; })()""")
     print('window', r); assert r == [0.5, 0.8, 0], r
+    # Kaleido with its centre at the top or bottom edge still shows the picture (the slice faces the middle; it went black at one edge); swapping colours on a shader pad
+    # and moving the merge updates the swatches (colour reads without a clip must not throw)
+    r = await pg.evaluate("""(async () => { selectPad(0); trigger(0); selectFx(FXI.mirror); const C = fxEd(); C.style = 'kal'; C.mode = 'hold'; C.amt = 0.5; syncFxUI(); fxDown(FXI.mirror); const out = [];
+      for (const v of [0.5, -0.5]){ C.kcx = 0; C.kcy = v; redraw.all = true; await new Promise(r => setTimeout(r, 500)); const d = master.getContext('2d').getImageData(0, 0, master.width, master.height).data; let n = 0; for (let i = 0; i < d.length; i += 64) if (d[i] + d[i + 1] + d[i + 2] > 40) n++; out.push(n > 200); }
+      fxUp(FXI.mirror); return out; })()""")
+    print('kaleido', r); assert r == [True, True], r
+    r = await pg.evaluate("""(async () => { selectPad(0); $('#gTabs [data-v=colour]').click(); syncGifUI(); await new Promise(r => setTimeout(r, 300)); const g = curGif(); const b = $('#swPal button'); b.click(); await new Promise(r => setTimeout(r, 100)); const ci = $('#swList input[type=color]'); ci.value = '#ff0000'; ci.dispatchEvent(new Event('input', { bubbles: true })); ci.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 300)); const n0 = $('#swPal').children.length, S = $('#swMerge'); S.value = 30; S.dispatchEvent(new Event('input', { bubbles: true })); await new Promise(r => setTimeout(r, 400)); return [g.swap.length, n0 > $('#swPal').children.length, S.nextElementSibling.textContent]; })()""")
+    print('swap', r); assert r == [1, True, '30'], r
     # a shader that does not compile never gets onto a pad
     r = await pg.evaluate("""(async () => { openShader(-1); $('#shCode').value = 'void mainImage(out vec4 c, in vec2 f){ c = vec3(1.0); }'; shRead(); const before = pool.length; await shaderOk(2); return [before === pool.length, !pads[2].gif]; })()""")
     print('bad', r); assert r == [True, True], r
