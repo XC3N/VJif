@@ -297,6 +297,12 @@ h2.foldable>.fname{cursor:pointer;user-select:none}h2.foldable>.fname::before{co
 #setPanel{background:none;place-items:start end;pointer-events:none}
 #poolPanel{background:none;place-items:start start;pointer-events:none}
 #txFont option{font-size:15px}
+#shPrev{width:100%;height:auto;display:block;margin:0 0 10px;border-radius:var(--r);background:#000;image-rendering:auto}
+#shaderPanel textarea{width:100%;resize:vertical;font:12px/1.4 var(--mono,ui-monospace,monospace);background:var(--bg);color:var(--ink);border:1px solid var(--edge);border-radius:var(--r);padding:6px 8px;tab-size:2;white-space:pre}
+.shErr{height:3.2em;overflow:auto;margin:6px 0 8px;font:11px/1.4 var(--mono,ui-monospace,monospace);color:var(--dim);white-space:pre-wrap}.shErr.bad{color:#ff6b6b}
+#shaderPanel{background:none;place-items:start start;pointer-events:none}#shaderPanel .modalBox{pointer-events:auto;margin:48px 0 0 340px;max-height:calc(100vh / var(--uiz, 1) - 60px);overflow:auto;background:color-mix(in srgb,var(--panel) 96%,#fff);border-color:color-mix(in srgb,var(--sig) 45%,var(--edge));box-shadow:0 18px 50px rgba(0,0,0,.75),0 2px 8px rgba(0,0,0,.5)}   /* a floating window like the pool: the pads stay playable behind it */
+#shParams{height:9.5em;overflow-y:scroll;margin:8px 0;padding-right:6px;border:1px solid var(--edge);border-radius:var(--r)}#shParams .field{margin:4px 6px}#shParams .shNone{color:var(--dim);font:11px/1.4 var(--mono,ui-monospace,monospace);padding:6px 8px}
+#shaderPanel.dragging{visibility:hidden}
 #txPrev{width:100%;height:auto;display:block;margin:0 0 10px;border-radius:var(--r);background:repeating-conic-gradient(#2a2a2a 0 25%,#1c1c1c 0 50%) 0 0/16px 16px}
 #textPanel textarea{width:100%;resize:vertical;font:600 15px var(--sans);background:var(--bg);color:var(--ink);border:1px solid var(--edge);border-radius:var(--r);padding:6px 8px}
 .txRow{display:flex;gap:10px;align-items:center;min-width:0}.txRow select{flex:1;min-width:0}#txCol{width:44px;height:var(--ch);padding:0;border:0;background:none}

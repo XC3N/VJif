@@ -28,7 +28,7 @@
 </header>
 
 <section id="bank" class="panel">
-  <h2>Pads<span class="line"></span><button id="textBtn" class="h2btn iconbtn" title="Text: a text played like a GIF (plain, marquee or matte)"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" style="display:block;margin:auto"><path d="M0.5 3h8v2H5.6v8H3.4V5H0.5zM10.4 5.2h1.8V7h2.3v1.6h-2.3v2.5c0 .5.3.8.8.8h1.5V13.5h-1.8c-1.5 0-2.3-.8-2.3-2.2V8.6H9V7h1.4z"/></svg></button><button id="poolBtn" class="h2btn" title="GIF pool: every GIF of this set">Pool 0</button></h2>
+  <h2>Pads<span class="line"></span><button id="textBtn" class="h2btn iconbtn" title="Text: a text played like a GIF (plain, marquee or matte)"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" style="display:block;margin:auto"><path d="M0.5 3h8v2H5.6v8H3.4V5H0.5zM10.4 5.2h1.8V7h2.3v1.6h-2.3v2.5c0 .5.3.8.8.8h1.5V13.5h-1.8c-1.5 0-2.3-.8-2.3-2.2V8.6H9V7h1.4z"/></svg></button><button id="shaderBtn" class="h2btn iconbtn" title="Shader: a Shadertoy-style fragment shader played like a GIF (paste the code, it follows the tempo)"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" style="display:block;margin:auto"><path d="M1 8l7-7 7 7-7 7zm3.2 0L8 11.8 11.8 8 8 4.2z"/></svg></button><button id="poolBtn" class="h2btn" title="GIF pool: every GIF of this set">Pool 0</button></h2>
   <input id="fileIn" type="file" accept=".gif,.webp,.png,.apng" multiple hidden>
   <div class="sub padsub" data-g="A" title="Scene pads, each scene its own · QWE ASD ZXC (bank 2: RTY FGH VBN) · click: fold"><span>Scene</span><span class="cnt"></span><span class="line"></span><span class="seg" id="bankBtn" title="Bank on show · Tab"><button data-v="0" class="on">1</button><button data-v="1">2</button></span></div>
   <div class="padgrid" id="gridA"></div>
@@ -77,7 +77,7 @@
 
 <aside id="side" class="panel">
   <canvas id="gPrev" width="112" height="112" title="The selected GIF: its first frame"></canvas>
-  <h2>GIF<span id="gifName" class="tag"></span><span class="line"></span><div class="seg" id="gRes" title="Resolution kept in memory (½: a quarter of the pixels, ¼: a sixteenth)"><button data-v="1">Full</button><button data-v="0.5">½</button><button data-v="0.25">¼</button></div><button id="gText" hidden title="Change this text (its settings are kept)">Edit text</button></h2>
+  <h2>GIF<span id="gifName" class="tag"></span><span class="line"></span><div class="seg" id="gRes" title="Resolution kept in memory (½: a quarter of the pixels, ¼: a sixteenth)"><button data-v="1">Full</button><button data-v="0.5">½</button><button data-v="0.25">¼</button></div><button id="gText" hidden title="Change this text (its settings are kept)">Edit text</button><button id="gShader" hidden title="Change this shader (its settings are kept)">Edit shader</button></h2>
   <div id="gQuick" class="disabled">
     <div class="field" id="gOpRow" title="Opacity of this placement of the GIF (on its layer)"><label for="xO">Opacity</label><input id="xO" type="range" data-def="1" data-pct min="0" max="1" step="0.01"><output></output></div>
     <div class="field" id="gBlRow" title="Blend of this GIF with everything under it on screen (with several GIFs on a layer that has its own blend or opacity: with the GIFs under it on that layer)"><label for="gBlend">Blend</label><select id="gBlend" class="span"></select></div>
@@ -350,6 +350,19 @@
     <p class="state" id="helpNone" hidden>Nothing matches.</p>
   </div>
 </div>
+<div id="shaderPanel" class="modal" hidden>
+  <div class="modalBox" style="width:min(560px,94vw)">
+    <h2>Shader<span id="shTo" class="tag"></span><span class="line"></span><button id="shClose" class="iconbtn" title="Close (Esc)">×</button></h2>
+    <canvas id="shPrev" width="480" height="270"></canvas>
+    <div class="field"><label for="shPreset">Start from</label><div class="txRow"><select id="shPreset" title="A bundled shader to start from"></select><input id="shName" type="text" placeholder="Name" spellcheck="false" style="width:9em"></div></div>
+    <textarea id="shCode" rows="12" spellcheck="false" placeholder="void mainImage(out vec4 fragColor, in vec2 fragCoord){ ... }  (paste a Shadertoy shader)"></textarea>
+    <div id="shErr" class="shErr"></div>
+    <div class="field"><label>Variables</label><button id="shReset" title="Back to the values written in the code">Reset values</button></div>
+    <div id="shParams"></div>
+    <div class="field"><label>Drawn at</label><div class="seg" id="shRes" title="Render size: the picture is drawn this small and scaled up"><button data-v="1">Full</button><button data-v="0.5">½</button><button data-v="0.25">¼</button></div></div>
+    <div class="row" style="justify-content:flex-end"><span id="shDrag" class="txchip" title="Drag onto a pad · a click: the next empty pad">Drag onto a pad</span><button id="shOk" class="accent">Update</button></div>
+  </div>
+</div>
 <div id="textPanel" class="modal" hidden>
   <div class="modalBox" style="width:min(620px,94vw)">
     <h2>Text<span id="txTo" class="tag"></span><span class="line"></span><button id="txClose" class="iconbtn" title="Close (Esc)">×</button></h2>
@@ -400,6 +413,7 @@
 /* @include src/types.js */
 /* @include src/frames.js */
 /* @include src/lettering.js */
+/* @include src/shader.js */
 /* @include src/pool.js */
 /* @include src/colour.js */
 /* @include src/clock-midi.js */

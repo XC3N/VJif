@@ -1,5 +1,5 @@
 // ---------- persistence: GIF files + settings in IndexedDB (cookies cap at ~4 KB) ----------
-const GIF_KEYS = ['name', 'sync', 'loop', 'speed', 'crisp', 'beats', 'subdiv', 'restart', 'lfade', 'inF', 'outF', 'startF', 'endF', 'outro', 'key', 'hsv', 'pal', 'swap', 'swapMerge', 'swapOff', 'trimOff', 'trig', 'env', 'lfo', 'shadow', 'nofx', 'gfx'];
+const GIF_KEYS = ['name', 'sync', 'loop', 'speed', 'crisp', 'beats', 'subdiv', 'restart', 'lfade', 'inF', 'outF', 'startF', 'endF', 'outro', 'key', 'hsv', 'pal', 'swap', 'swapMerge', 'swapOff', 'trimOff', 'trig', 'env', 'lfo', 'shadow', 'nofx', 'gfx', 'gp'];
 const XF_KEYS = [...Object.keys(newXf()), 'alpha'];
 // IndexedDB 'kv' store:
 //   'gif:<hash>' → { name, blob }               original files, stored once (content hash), shared by sets
@@ -342,7 +342,7 @@ async function readZip(blob){                        // → Map(name → Uint8Ar
   }
   return out;
 }
-const EXT = { 'image/gif': 'gif', 'image/webp': 'webp', 'image/png': 'png', 'image/apng': 'png', 'application/vnd.vjif.text+json': 'vjtext' };
+const EXT = { 'image/gif': 'gif', 'image/webp': 'webp', 'image/png': 'png', 'image/apng': 'png', 'application/vnd.vjif.text+json': 'vjtext', 'application/vnd.vjif.shader+json': 'vjshader' };
 async function exportSet(name, snap){
   const st = upgradeSnap(JSON.parse(snap)), files = [], byHash = new Map(), enc = new TextEncoder();
   for (const sp of st.pool){

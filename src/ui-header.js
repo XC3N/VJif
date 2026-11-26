@@ -137,7 +137,7 @@ function moveBox(box, x, y){
   Object.assign(box.style, { position: 'fixed', margin: '0', left: clamp(x, 0, innerWidth - w * uiZoom) / uiZoom + 'px', top: clamp(y, 0, innerHeight - 48) / uiZoom + 'px' });
 }
 function placeMovable(box, key){ const p = Prefs.json(key); if (p) moveBox(box, p[0], p[1]); }
-movable($('#setPanel .modalBox'), 'vjif-setpos');
+movable($('#setPanel .modalBox'), 'vjif-setpos'); movable($('#shaderPanel .modalBox'), 'vjif-shaderpos'); placeMovable($('#shaderPanel .modalBox'), 'vjif-shaderpos');
 const placeSettings = () => placeMovable($('#setPanel .modalBox'), 'vjif-setpos');
 $('#setClose').addEventListener('click', () => { $('#setPanel').hidden = true; });
 // open Settings at the section holding el, unfolded and scrolled to (0.99.4: right-click MIDI in the top bar → the MIDI section)

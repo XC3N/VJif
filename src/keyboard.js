@@ -10,6 +10,7 @@ const FX_MODE_KEYS = { Insert: 'hold', Home: 'hit', PageUp: 'latch' };   // the 
 let heldFxKey = -1;   // an F-key effect held down: 1–5 then set its layers
 function onKey(e){
   if (midiCtl.learning){ if (e.key === 'Escape' || e.key === 'Enter'){ e.preventDefault(); endLearn(); } return; }
+  if (!$('#shaderPanel').hidden && e.key === 'Escape'){ e.preventDefault(); closeShader(); return; }   // a floating window: keys keep working (not while typing in its code)
   if (!$('#textPanel').hidden){ if (e.key === 'Escape'){ e.preventDefault(); closeText(); } else if (e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); textOk(); } return; }   // Enter: put it on the pad · Shift+Enter: a new line (as everywhere)
   if (!$('#credPanel').hidden){ if (e.key === 'Escape'){ e.preventDefault(); $('#credPanel').hidden = true; } return; }
   if (!$('#aboutPanel').hidden){ if (e.key === 'Escape' || e.key === 'Enter'){ e.preventDefault(); closeAbout(); } return; }

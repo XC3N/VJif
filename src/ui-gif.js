@@ -32,10 +32,10 @@ function syncGifUI(){
   const p = pads[selPad], g = noSel ? null : p.gif; syncSwitches(g);
   $('#gifSettings').classList.toggle('disabled', !g);
   $('#gifName').textContent = `${p.label}${g ? (g.keyMsg ? ' · ' + g.keyMsg : '') : ' · empty'}`; $('#gifName').title = '';
-  $('#gText').hidden = !(g && g.media && g.media.text);
+  $('#gText').hidden = !(g && g.media && g.media.text); $('#gShader').hidden = !(g && g.media && g.media.gen);
   if (!g){ document.querySelector('[data-pane=play]').classList.remove('textpad'); document.querySelectorAll('#gifSettings [data-for]').forEach(f => f.hidden = f.dataset.for !== 'stretch'); return; }   // empty pad: one of the stacked fields, not all three on top of each other
   $('#gSmooth').checked = !g.crisp; $('#gNoFx').checked = !!g.nofx;
-  document.querySelector('[data-pane=play]').classList.toggle('textpad', !!(g.media && g.media.text));   // lettering: the GIF-only settings are dimmed
+  document.querySelector('[data-pane=play]').classList.toggle('textpad', !!(g.media && (g.media.text || g.media.gen)));   // lettering: the GIF-only settings are dimmed
   { const P = g.pal && g.pal.i >= 0 ? g.pal : null, on = !!P, F = $('#gPalF'), [fi, vi] = on ? palFam(P.i) : [-1, 0], FM = on ? PAL_FAM[fi] : null;   // Snap to: None, then the families by year; a family's variants and the dither pattern below
     F.max = PAL_FAM.length; F.value = fi + 1; F.nextElementSibling.textContent = on ? FM.n : 'None'; F.closest('.field').title = on ? 'Snap to: ' + FX_PALS[P.i].t : 'Snap to: the palette this GIF\'s colours snap to, by year (None: its own colours)';
     const many = on && FM.m.length > 1; $('#gPalVarRow').classList.toggle('dimmed', !many);   // (the row stays: nothing moves when a palette has no variants)
@@ -46,7 +46,7 @@ function syncGifUI(){
     const gb = on && palGB(P.i); $('#gPalDRow').classList.toggle('dimmed', !on || nd); $('#gPalPat').classList.toggle('ghost', gb || nd); $('#gPalDRow').title = nd ? 'Dither: not on this palette (64 grey steps are already smooth; the NES never dithered)' : 'Dither (off: flat areas); the switch picks the pattern'; }
     $('#gPalFit').checked = !!(g.pal && g.pal.fit); $('#gPalFit').closest('.field').classList.toggle('dimmed', !(g.pal && g.pal.i >= 0));
   syncShadowUI(g);
-  segSet('#gSync', g.sync); segSet('#gLoop', g.loop); famShow($('#gRestart'), g.restart || 0); segSet('#gRes', String(g.media.scale || 1)); $('#gRes').classList.toggle('dimmed', !!g.media.text);
+  segSet('#gSync', g.sync); segSet('#gLoop', g.loop); famShow($('#gRestart'), g.restart || 0); segSet('#gRes', String(g.media.scale || 1)); $('#gRes').classList.toggle('dimmed', !!(g.media.text || g.media.gen));
   { const L = $('#gLFade'), f = g.loop === 'loop'; L.value = Math.round((g.lfade || 0) * 20); L.nextElementSibling.textContent = g.lfade > 0 ? Math.round(g.lfade * 100) + '%' : 'off'; $('#gLFadeRow').classList.toggle('dimmed', !f); }   // (forward loops only)
   $('#gSpeed').value = g.speed; $('#gSpeed').nextElementSibling.textContent = g.speed.toFixed(2) + '×';
   famShow($('#gBeats'), g.beats); famShow($('#gSub'), 1 / g.subdiv);
@@ -76,7 +76,7 @@ const gifMsg = g => { if (pads[selPad].gif === g) $('#gifName').textContent = `$
 // readouts too narrow for their text: hovering shows all of it
 document.addEventListener('pointerover', e => { const el = e.target.closest && e.target.closest('.lcd, .tag, output, .seg button, .fxp .t>span');
   if (el && el.scrollWidth > el.clientWidth + 1 && (!el.title || el.dataset.autoTip)){ el.title = el.textContent.trim(); el.dataset.autoTip = 1; } });
-onSeg($('#gRes'), (b, e) => { const g = curGif(); if (!g || g.media.text) return;
+onSeg($('#gRes'), (b, e) => { const g = curGif(); if (!g || g.media.text || g.media.gen) return;
   const sc = +b.dataset.v, m = g.media, was = m.srcBytes; segSet('#gRes', b.dataset.v);
   setMediaScale(m, sc).then(() => toast2(`${m.name}: ${(was / 1048576).toFixed(0)} → ${(m.srcBytes / 1048576).toFixed(0)} MB`)); });
 onSeg($('#poolRes'), async b => { const sc = +b.dataset.v, was = pool.reduce((t, m) => t + (m.srcBytes || 0), 0);
@@ -85,7 +85,7 @@ onSeg($('#poolRes'), async b => { const sc = +b.dataset.v, was = pool.reduce((t,
   toast2(`Pool: ${(was / 1048576).toFixed(0)} → ${(now / 1048576).toFixed(0)} MB`); });
 // 0.99.7: Fit = each GIF kept at the least resolution that still covers its biggest placement (live layers and every scene); GIFs placed nowhere stay as they are
 $('#poolOpt').addEventListener('click', async () => {
-  const need = new Map(), see = (g, c) => { if (!g || g.media.text) return; const [bw] = baseSize(g, c.fit), n = bw * Math.max(Math.abs(c.sx), Math.abs(c.sy)) / (g.media.w || 1); need.set(g.media, Math.max(need.get(g.media) || 0, n)); };
+  const need = new Map(), see = (g, c) => { if (!g || g.media.text || g.media.gen) return; const [bw] = baseSize(g, c.fit), n = bw * Math.max(Math.abs(c.sx), Math.abs(c.sy)) / (g.media.w || 1); need.set(g.media, Math.max(need.get(g.media) || 0, n)); };
   layers.forEach(L => L.clips.forEach(c => see(pads[c.pad] && pads[c.pad].gif, c)));
   scenes.forEach(sc => sc && sc.layers && sc.layers.forEach(L => L.clips.forEach(c => see(sc.pads && sc.pads[c.pad], c))));
   const was = pool.reduce((t, m) => t + (m.srcBytes || 0), 0);
